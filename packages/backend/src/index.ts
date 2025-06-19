@@ -13,6 +13,8 @@ import {
   pluginIDProviderService,
   rbacDynamicPluginsProvider,
 } from './modules';
+import authProvidersModule from './modules/authProvidersModule.ts';
+import { getDynamicUserEntityProvider } from './modules/dynamicUsersModule.ts';
 
 // Create a logger to cover logging static initialization tasks
 const staticLogger = WinstonLogger.create({
@@ -88,7 +90,8 @@ backend.add(rbacDynamicPluginsProvider);
 backend.add(import('@backstage/plugin-auth-backend'));
 backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
 if (process.env.ENABLE_AUTH_PROVIDER_MODULE_OVERRIDE !== 'true') {
-  backend.add(import('./modules/authProvidersModule'));
+  backend.add(import('./modules/dynamicUsersModule'));
+  backend.add(authProvidersModule(getDynamicUserEntityProvider));
 } else {
   staticLogger.info(`Default authentication provider module disabled`);
 }

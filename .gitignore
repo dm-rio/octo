@@ -63,3 +63,7 @@ dynamic-plugins-root/*
 
 # Private Keys
 *.pem
+/rbac-policy.csv
+/.rbac/
+/dynamic-plugins-octo/
+/.atemp/

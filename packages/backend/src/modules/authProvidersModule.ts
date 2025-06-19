@@ -65,11 +65,14 @@ import {
   createProxyAuthProviderFactory,
 } from '@backstage/plugin-auth-node';
 
+import { DynamicUserEntityProvider } from '../providers/dynamicUserEntityProvider.ts';
 import { TransitiveGroupOwnershipResolver } from '../transitiveGroupOwnershipResolver';
-import { trySignInResolvers } from './resolverUtils';
 import { rhdhSignInResolvers } from './rhdhSignInResolvers';
 
-function getAuthProviderFactory(providerId: string): AuthProviderFactory {
+function getAuthProviderFactory(
+  providerId: string,
+  getUserEntityProvider: () => DynamicUserEntityProvider,
+): AuthProviderFactory {
   switch (providerId) {
     case 'atlassian':
       return createOAuthProviderFactory({
@@ -180,19 +183,15 @@ function getAuthProviderFactory(providerId: string): AuthProviderFactory {
     case 'oidc':
       return createOAuthProviderFactory({
         authenticator: oidcAuthenticator,
-        signInResolver: trySignInResolvers([
+        signInResolver:
           rhdhSignInResolvers.oidcSubClaimMatchingKeycloakUserId(),
-          rhdhSignInResolvers.oidcLdapUuidMatchingAnnotation(),
-        ]),
         signInResolverFactories: {
-          preferredUsernameMatchingUserEntityName:
-            rhdhSignInResolvers.preferredUsernameMatchingUserEntityName,
           oidcSubClaimMatchingKeycloakUserId:
             rhdhSignInResolvers.oidcSubClaimMatchingKeycloakUserId,
+          oauth2TokenClaimResolver:
+            rhdhSignInResolvers.oauth2TokenClaimResolver(getUserEntityProvider),
           oidcSubClaimMatchingPingIdentityUserId:
             rhdhSignInResolvers.oidcSubClaimMatchingPingIdentityUserId,
-          oidcLdapUuidMatchingAnnotation:
-            rhdhSignInResolvers.oidcLdapUuidMatchingAnnotation,
           ...oidcSignInResolvers,
           ...commonSignInResolvers,
         },
@@ -231,56 +230,62 @@ function getAuthProviderFactory(providerId: string): AuthProviderFactory {
   }
 }
 
-const authProvidersModule = createBackendModule({
-  pluginId: 'auth',
-  moduleId: 'auth.providers',
-  register(reg) {
-    reg.registerInit({
-      deps: {
-        config: coreServices.rootConfig,
-        authProviders: authProvidersExtensionPoint,
-        authOwnershipResolution: authOwnershipResolutionExtensionPoint,
-        logger: coreServices.logger,
-        discovery: coreServices.discovery,
-        auth: coreServices.auth,
-      },
-      async init({
-        config,
-        authProviders,
-        authOwnershipResolution,
-        logger,
-        discovery,
-        auth,
-      }) {
-        const providersConfig = config.getConfig('auth.providers');
-        const authFactories: Record<string, AuthProviderFactory> = {};
-        providersConfig
-          .keys()
-          .filter(key => key !== 'guest')
-          .forEach(providerId => {
-            const factory = getAuthProviderFactory(providerId);
-            authFactories[providerId] = factory;
+const authProvidersModule = (
+  getUserEntityProvider: () => DynamicUserEntityProvider,
+) =>
+  createBackendModule({
+    pluginId: 'auth',
+    moduleId: 'auth.providers',
+    register(reg) {
+      reg.registerInit({
+        deps: {
+          config: coreServices.rootConfig,
+          authProviders: authProvidersExtensionPoint,
+          authOwnershipResolution: authOwnershipResolutionExtensionPoint,
+          logger: coreServices.logger,
+          discovery: coreServices.discovery,
+          auth: coreServices.auth,
+        },
+        async init({
+          config,
+          authProviders,
+          authOwnershipResolution,
+          logger,
+          discovery,
+          auth,
+        }) {
+          const providersConfig = config.getConfig('auth.providers');
+          const authFactories: Record<string, AuthProviderFactory> = {};
+          providersConfig
+            .keys()
+            .filter(key => key !== 'guest')
+            .forEach(providerId => {
+              const factory = getAuthProviderFactory(
+                providerId,
+                getUserEntityProvider,
+              );
+              authFactories[providerId] = factory;
+            });
+
+          const providerFactories: Record<string, AuthProviderFactory> = {
+            ...authFactories,
+          };
+
+          logger.info(
+            `Enabled Provider Factories : ${JSON.stringify(providerFactories)}`,
+          );
+          const transitiveGroupOwnershipResolver =
+            new TransitiveGroupOwnershipResolver({ discovery, config, auth });
+          authOwnershipResolution.setAuthOwnershipResolver(
+            transitiveGroupOwnershipResolver,
+          );
+
+          Object.entries(providerFactories).forEach(([providerId, factory]) => {
+            authProviders.registerProvider({ providerId, factory });
           });
-
-        const providerFactories: Record<string, AuthProviderFactory> = {
-          ...authFactories,
-        };
-
-        logger.info(
-          `Enabled Provider Factories : ${JSON.stringify(providerFactories)}`,
-        );
-        const transitiveGroupOwnershipResolver =
-          new TransitiveGroupOwnershipResolver({ discovery, config, auth });
-        authOwnershipResolution.setAuthOwnershipResolver(
-          transitiveGroupOwnershipResolver,
-        );
-
-        Object.entries(providerFactories).forEach(([providerId, factory]) => {
-          authProviders.registerProvider({ providerId, factory });
-        });
-      },
-    });
-  },
-});
+        },
+      });
+    },
+  });
 
 export default authProvidersModule;

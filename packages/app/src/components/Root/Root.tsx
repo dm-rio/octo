@@ -218,7 +218,7 @@ const ExpandableMenuList: FC<ExpandableMenuListProps> = ({
   );
 };
 
-export const Root = ({ children }: PropsWithChildren<{}>) => {
+export const Root = ({ children }: PropsWithChildren<unknown>) => {
   const aboveSidebarHeaderRef = useRef<HTMLDivElement>(null);
   const [aboveSidebarHeaderHeight, setAboveSidebarHeaderHeight] = useState(0);
   const aboveMainContentHeaderRef = useRef<HTMLDivElement>(null);
@@ -262,21 +262,21 @@ export const Root = ({ children }: PropsWithChildren<{}>) => {
   const { dynamicRoutes, menuItems } = useContext(DynamicRootContext);
 
   const configApi = useApi(configApiRef);
+  const { loading: loadingPermission, allowed: canDisplayRBACMenuItem } =
+    usePermission({
+      permission: policyEntityCreatePermission,
+      resourceRef: undefined,
+    });
 
   const showLogo = configApi.getOptionalBoolean('app.sidebar.logo') ?? true;
   const showSearch = configApi.getOptionalBoolean('app.sidebar.search') ?? true;
   const showSettings =
     configApi.getOptionalBoolean('app.sidebar.settings') ?? true;
   const showAdministration =
-    configApi.getOptionalBoolean('app.sidebar.administration') ?? true;
+    configApi.getOptionalBoolean('app.sidebar.administration') ??
+    canDisplayRBACMenuItem;
 
   const [openItems, setOpenItems] = useState<{ [key: string]: boolean }>({});
-
-  const { loading: loadingPermission, allowed: canDisplayRBACMenuItem } =
-    usePermission({
-      permission: policyEntityCreatePermission,
-      resourceRef: undefined,
-    });
 
   const handleClick = (itemName: string) => {
     setOpenItems(prevOpenItems => ({
