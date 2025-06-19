@@ -65,12 +65,13 @@ import {
   createProxyAuthProviderFactory,
 } from '@backstage/plugin-auth-node';
 
+import { DynamicUserEntityProvider } from '../providers/dynamicUserEntityProvider.ts';
 import { TransitiveGroupOwnershipResolver } from '../transitiveGroupOwnershipResolver';
-import { trySignInResolvers } from './resolverUtils';
 import { rhdhSignInResolvers } from './rhdhSignInResolvers';
 
 function getAuthProviderFactory(
   providerId: string,
+  getUserEntityProvider: () => DynamicUserEntityProvider,
   disableIdentityResolution: boolean,
 ): AuthProviderFactory {
   const applySignInResolvers = (options: {
@@ -272,7 +273,10 @@ function getAuthProviderFactory(
   }
 }
 
-const authProvidersModule = createBackendModule({
+const authProvidersModule = (
+  getUserEntityProvider: () => DynamicUserEntityProvider,
+) =>
+  createBackendModule({
   pluginId: 'auth',
   moduleId: 'auth.providers',
   register(reg) {
@@ -308,29 +312,30 @@ const authProvidersModule = createBackendModule({
             const factory = getAuthProviderFactory(
               providerId,
               disableIdentityResolution,
+              getUserEntityProvider
             );
             authFactories[providerId] = factory;
           });
 
-        const providerFactories: Record<string, AuthProviderFactory> = {
-          ...authFactories,
-        };
+          const providerFactories: Record<string, AuthProviderFactory> = {
+            ...authFactories,
+          };
 
-        logger.info(
-          `Enabled Provider Factories : ${JSON.stringify(providerFactories)}`,
-        );
-        const transitiveGroupOwnershipResolver =
-          new TransitiveGroupOwnershipResolver({ discovery, config, auth });
-        authOwnershipResolution.setAuthOwnershipResolver(
-          transitiveGroupOwnershipResolver,
-        );
+          logger.info(
+            `Enabled Provider Factories : ${JSON.stringify(providerFactories)}`,
+          );
+          const transitiveGroupOwnershipResolver =
+            new TransitiveGroupOwnershipResolver({ discovery, config, auth });
+          authOwnershipResolution.setAuthOwnershipResolver(
+            transitiveGroupOwnershipResolver,
+          );
 
-        Object.entries(providerFactories).forEach(([providerId, factory]) => {
-          authProviders.registerProvider({ providerId, factory });
-        });
-      },
-    });
-  },
-});
+          Object.entries(providerFactories).forEach(([providerId, factory]) => {
+            authProviders.registerProvider({ providerId, factory });
+          });
+        },
+      });
+    },
+  });
 
 export default authProvidersModule;

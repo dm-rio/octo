@@ -63,6 +63,10 @@ dynamic-plugins-root/*
 
 # Private Keys
 *.pem
+/rbac-policy.csv
+/.rbac/
+/dynamic-plugins-octo/
+/.atemp/
 
 # Local Cursor rules context
 .cursor/rules/*.local.mdc
