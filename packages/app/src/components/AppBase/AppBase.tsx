@@ -9,7 +9,6 @@ import {
   CatalogIndexPage,
   CatalogTable,
   CatalogTableColumnsFunc,
-  CatalogTableRow,
 } from '@backstage/plugin-catalog';
 import { catalogEntityCreatePermission } from '@backstage/plugin-catalog-common/alpha';
 import { CatalogGraphPage } from '@backstage/plugin-catalog-graph';
@@ -43,34 +42,45 @@ const AppBase = () => {
   } = useContext(DynamicRootContext);
 
   const myCustomColumnsFunc: CatalogTableColumnsFunc = entityListContext => [
-    ...CatalogTable.defaultColumnsFunc(entityListContext),
-    {
-      title: 'Created At',
-      customSort: (a: CatalogTableRow, b: CatalogTableRow): any => {
-        const timestampA =
-          a.entity.metadata.annotations?.['backstage.io/createdAt'];
-        const timestampB =
-          b.entity.metadata.annotations?.['backstage.io/createdAt'];
-
-        const dateA =
-          timestampA && timestampA !== ''
-            ? new Date(timestampA).toISOString()
-            : '';
-        const dateB =
-          timestampB && timestampB !== ''
-            ? new Date(timestampB).toISOString()
-            : '';
-
-        return dateA.localeCompare(dateB);
-      },
-      render: (data: CatalogTableRow) => {
-        const date =
-          data.entity.metadata.annotations?.['backstage.io/createdAt'];
-        return !isNaN(new Date(date || '') as any)
-          ? data.entity.metadata.annotations?.['backstage.io/createdAt']
-          : '';
-      },
-    },
+    ...CatalogTable.defaultColumnsFunc(entityListContext)
+      .filter(
+        col =>
+          col.title !== 'Owner' &&
+          col.title !== 'Lifecycle' &&
+          col.title !== 'Type' &&
+          col.title !== 'Actions',
+      )
+      .map(col => ({
+        ...col,
+        width: '25%',
+      })),
+    // {
+    //   title: 'Created At',
+    //   customSort: (a: CatalogTableRow, b: CatalogTableRow): any => {
+    //     const timestampA =
+    //       a.entity.metadata.annotations?.['backstage.io/createdAt'];
+    //     const timestampB =
+    //       b.entity.metadata.annotations?.['backstage.io/createdAt'];
+    //
+    //     const dateA =
+    //       timestampA && timestampA !== ''
+    //         ? new Date(timestampA).toISOString()
+    //         : '';
+    //     const dateB =
+    //       timestampB && timestampB !== ''
+    //         ? new Date(timestampB).toISOString()
+    //         : '';
+    //
+    //     return dateA.localeCompare(dateB);
+    //   },
+    //   render: (data: CatalogTableRow) => {
+    //     const date =
+    //       data.entity.metadata.annotations?.['backstage.io/createdAt'];
+    //     return !isNaN(new Date(date || '') as any)
+    //       ? data.entity.metadata.annotations?.['backstage.io/createdAt']
+    //       : '';
+    //   },
+    // },
   ];
 
   return (
@@ -86,7 +96,12 @@ const AppBase = () => {
               <Route
                 path="/catalog"
                 element={
-                  <CatalogIndexPage pagination columns={myCustomColumnsFunc} />
+                  <CatalogIndexPage
+                    pagination
+                    initialKind="Domain"
+                    columns={myCustomColumnsFunc}
+                    actions={[]}
+                  />
                 }
               />
               <Route
@@ -110,7 +125,10 @@ const AppBase = () => {
                 </ScaffolderFieldExtensions>
                 scaffolderFieldExtensions
               </Route>
-              <Route path="/api-docs" element={<ApiExplorerPage />} />
+              <Route
+                path="/api-docs"
+                element={<ApiExplorerPage actions={[]} />}
+              />
               <Route
                 path="/catalog-import"
                 element={

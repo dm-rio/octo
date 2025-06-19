@@ -1,7 +1,13 @@
+import {
+  DEFAULT_NAMESPACE,
+  Entity,
+  stringifyEntityRef,
+} from '@backstage/catalog-model';
 import type { OAuth2ProxyResult } from '@backstage/plugin-auth-backend-module-oauth2-proxy-provider';
 import type { OidcAuthResult } from '@backstage/plugin-auth-backend-module-oidc-provider';
 import {
   AuthResolverContext,
+  BackstageSignInResult,
   createSignInResolverFactory,
   OAuthAuthenticatorResult,
   SignInInfo,
@@ -10,6 +16,7 @@ import {
 import { decodeJwt } from 'jose';
 import { z } from 'zod';
 
+import { DynamicUserEntityProvider } from '../providers/dynamicUserEntityProvider.ts';
 import { createOidcSubClaimResolver, OidcProviderInfo } from './resolverUtils';
 
 const KEYCLOAK_INFO: OidcProviderInfo = {
@@ -164,4 +171,107 @@ export namespace rhdhSignInResolvers {
       };
     },
   });
+
+  export const oauth2TokenClaimResolver = (
+    getUserEntityProvider: () => DynamicUserEntityProvider,
+  ) =>
+    createSignInResolverFactory({
+      optionsSchema: z
+        .object({
+          dangerouslyAllowSignInWithoutUserInCatalog: z.boolean().optional(),
+        })
+        .optional(),
+      create() {
+        return async (
+          info: SignInInfo<OAuthAuthenticatorResult<OidcAuthResult>>,
+          ctx: AuthResolverContext,
+        ) => {
+          const tokens =
+            info.result.fullProfile?.tokenset.access_token?.split('.');
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-expect-error
+          const claims = JSON.parse(atob(tokens[1]));
+          if (!info.profile.email) {
+            throw new Error(
+              'Login failed, user profile does not contain an email',
+            );
+          }
+
+          const [username] = info.profile.email.split('@');
+          let entitlements: string[] = (claims?.groups as string[]) ?? [];
+          entitlements = entitlements.concat(
+            claims?.resource_access?.octo?.roles ?? [],
+          );
+          const groups = entitlements?.map(
+            (entitlement: string) => `group:default/${entitlement}`,
+          );
+
+          const userEntity: Entity = {
+            apiVersion: 'backstage.io/v1alpha1',
+            kind: 'User',
+            metadata: {
+              name: username,
+              namespace: DEFAULT_NAMESPACE,
+              annotations: {
+                'backstage.io/managed-by-location': `url:dynamic-user-provider`,
+                'backstage.io/managed-by-origin-location': `url:dynamic-user-provider`,
+              },
+            },
+            spec: {
+              profile: {
+                displayName: username,
+                email: info.profile.email,
+              },
+              memberOf: groups,
+            },
+          };
+          const userEntityRef = stringifyEntityRef(userEntity);
+          try {
+            await getUserEntityProvider().addOrUpdateUser(userEntity);
+          } catch (error) {
+            console.error('Failed to add user to catalog via provider:', error);
+          }
+
+          let result: BackstageSignInResult | undefined;
+          let attempt = 0;
+          const MAX_RETRIES = 10;
+          const RETRY_DELAY_MS = 300;
+
+          while (attempt < MAX_RETRIES) {
+            try {
+              result = await ctx.signInWithCatalogUser({
+                entityRef: userEntityRef,
+              });
+              break;
+            } catch (err: unknown) {
+              if (
+                typeof err === 'object' &&
+                err !== null &&
+                'name' in err &&
+                'message' in err
+              ) {
+                const typedErr = err as { name: string; message: string };
+                if (typedErr.name === 'NotFoundError') {
+                  await new Promise(res => setTimeout(res, RETRY_DELAY_MS));
+                  attempt++;
+                  continue;
+                }
+
+                throw new Error(
+                  `Failed to sign in with catalog user: ${typedErr.message}`,
+                );
+              }
+            }
+          }
+
+          if (!result) {
+            throw new Error(
+              `User entity ${userEntityRef} not found in catalog after ${MAX_RETRIES} attempts`,
+            );
+          }
+
+          return result;
+        };
+      },
+    });
 }
