@@ -65,7 +65,6 @@ dynamic-plugins-root/*
 *.pem
 /rbac-policy.csv
 /.rbac/
-/dynamic-plugins-octo/
 /.atemp/
 
 # Local Cursor rules context
