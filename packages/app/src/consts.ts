@@ -6,11 +6,11 @@ export const DefaultMainMenuItems = {
       to: '/',
       priority: 100,
     },
-    'default.my-group': {
-      title: 'My Group',
-      icon: 'group',
-      priority: 90,
-    },
+    // 'default.my-group': {
+    //   title: 'My Group',
+    //   icon: 'group',
+    //   priority: 90,
+    // },
     'default.catalog': {
       title: 'Catalog',
       icon: 'category',
