@@ -69,3 +69,4 @@ dynamic-plugins-root/*
 
 # Local Cursor rules context
 .cursor/rules/*.local.mdc
+/app-config.ucare.yaml

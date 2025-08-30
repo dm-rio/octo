@@ -1,78 +1,33 @@
-import {
-  coreServices,
-  createBackendModule,
-} from '@backstage/backend-plugin-api';
-import {
-  atlassianAuthenticator,
-  atlassianSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-atlassian-provider';
+import { coreServices, createBackendModule } from '@backstage/backend-plugin-api';
+import { atlassianAuthenticator, atlassianSignInResolvers } from '@backstage/plugin-auth-backend-module-atlassian-provider';
 import { auth0Authenticator } from '@backstage/plugin-auth-backend-module-auth0-provider';
-import {
-  azureEasyAuthAuthenticator,
-  azureEasyAuthSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-azure-easyauth-provider';
-import {
-  bitbucketAuthenticator,
-  bitbucketSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-bitbucket-provider';
-import {
-  bitbucketServerAuthenticator,
-  bitbucketServerSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-bitbucket-server-provider';
-import {
-  cloudflareAccessSignInResolvers,
-  createCloudflareAccessAuthenticator,
-} from '@backstage/plugin-auth-backend-module-cloudflare-access-provider';
-import {
-  gcpIapAuthenticator,
-  gcpIapSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-gcp-iap-provider';
-import {
-  githubAuthenticator,
-  githubSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-github-provider';
-import {
-  gitlabAuthenticator,
-  gitlabSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-gitlab-provider';
+import { azureEasyAuthAuthenticator, azureEasyAuthSignInResolvers } from '@backstage/plugin-auth-backend-module-azure-easyauth-provider';
+import { bitbucketAuthenticator, bitbucketSignInResolvers } from '@backstage/plugin-auth-backend-module-bitbucket-provider';
+import { bitbucketServerAuthenticator, bitbucketServerSignInResolvers } from '@backstage/plugin-auth-backend-module-bitbucket-server-provider';
+import { cloudflareAccessSignInResolvers, createCloudflareAccessAuthenticator } from '@backstage/plugin-auth-backend-module-cloudflare-access-provider';
+import { gcpIapAuthenticator, gcpIapSignInResolvers } from '@backstage/plugin-auth-backend-module-gcp-iap-provider';
+import { githubAuthenticator, githubSignInResolvers } from '@backstage/plugin-auth-backend-module-github-provider';
+import { gitlabAuthenticator, gitlabSignInResolvers } from '@backstage/plugin-auth-backend-module-gitlab-provider';
 import { googleAuthenticator } from '@backstage/plugin-auth-backend-module-google-provider';
-import {
-  microsoftAuthenticator,
-  microsoftSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-microsoft-provider';
-import {
-  oauth2ProxyAuthenticator,
-  oauth2ProxySignInResolvers,
-} from '@backstage/plugin-auth-backend-module-oauth2-proxy-provider';
-import {
-  oidcAuthenticator,
-  oidcSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-oidc-provider';
-import {
-  oktaAuthenticator,
-  oktaSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-okta-provider';
-import {
-  oneLoginAuthenticator,
-  oneLoginSignInResolvers,
-} from '@backstage/plugin-auth-backend-module-onelogin-provider';
-import {
-  authOwnershipResolutionExtensionPoint,
-  AuthProviderFactory,
-  authProvidersExtensionPoint,
-  commonSignInResolvers,
-  createOAuthProviderFactory,
-  createProxyAuthProviderFactory,
-} from '@backstage/plugin-auth-node';
+import { microsoftAuthenticator, microsoftSignInResolvers } from '@backstage/plugin-auth-backend-module-microsoft-provider';
+import { oauth2ProxyAuthenticator, oauth2ProxySignInResolvers } from '@backstage/plugin-auth-backend-module-oauth2-proxy-provider';
+import { oidcAuthenticator, oidcSignInResolvers } from '@backstage/plugin-auth-backend-module-oidc-provider';
+import { oktaAuthenticator, oktaSignInResolvers } from '@backstage/plugin-auth-backend-module-okta-provider';
+import { oneLoginAuthenticator, oneLoginSignInResolvers } from '@backstage/plugin-auth-backend-module-onelogin-provider';
+import { authOwnershipResolutionExtensionPoint, AuthProviderFactory, authProvidersExtensionPoint, commonSignInResolvers, createOAuthProviderFactory, createProxyAuthProviderFactory } from '@backstage/plugin-auth-node';
+
+
 
 import { DynamicUserEntityProvider } from '../providers/dynamicUserEntityProvider.ts';
 import { TransitiveGroupOwnershipResolver } from '../transitiveGroupOwnershipResolver';
+import { trySignInResolvers } from './resolverUtils';
 import { rhdhSignInResolvers } from './rhdhSignInResolvers';
+
 
 function getAuthProviderFactory(
   providerId: string,
-  getUserEntityProvider: () => DynamicUserEntityProvider,
   disableIdentityResolution: boolean,
+  getUserEntityProvider: () => DynamicUserEntityProvider,
 ): AuthProviderFactory {
   const applySignInResolvers = (options: {
     signInResolver: any;
@@ -219,6 +174,8 @@ function getAuthProviderFactory(
             rhdhSignInResolvers.oidcLdapUuidMatchingAnnotation(),
           ]),
           signInResolverFactories: {
+            oauth2TokenClaimResolver:
+              rhdhSignInResolvers.oauth2TokenClaimResolver(getUserEntityProvider),
             preferredUsernameMatchingUserEntityName:
               rhdhSignInResolvers.preferredUsernameMatchingUserEntityName,
             oidcSubClaimMatchingKeycloakUserId:
