@@ -312,11 +312,6 @@ export const Root = ({ children }: PropsWithChildren<{}>) => {
 
   const [openItems, setOpenItems] = useState<{ [key: string]: boolean }>({});
 
-  const { loading: loadingPermission, allowed: canDisplayRBACMenuItem } =
-    usePermission({
-      permission: policyEntityCreatePermission,
-      resourceRef: undefined,
-    });
   useLanguagePreference();
   const { t } = useTranslation();
 
