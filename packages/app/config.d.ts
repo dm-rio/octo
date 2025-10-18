@@ -96,6 +96,16 @@ export interface Config {
        */
       title: string;
       /**
+       * Optional translation key for the title.
+       * @visibility frontend
+       */
+      titleKey?: string;
+      /**
+       * The roles associated with the quickstart.
+       * @visibility frontend
+       */
+      roles?: Array<string>;
+      /**
        * Optional icon for quickstart.
        * @visibility frontend
        */
@@ -106,6 +116,11 @@ export interface Config {
        */
       description: string;
       /**
+       * Optional translation key for the description.
+       * @visibility frontend
+       */
+      descriptionKey?: string;
+      /**
        * Optional action item for quickstart.
        * @visibility frontend
        */
@@ -115,6 +130,11 @@ export interface Config {
          * @visibility frontend
          */
         text: string;
+        /**
+         * Optional translation key for the action text.
+         * @visibility frontend
+         */
+        textKey?: string;
         /**
          * Action item link.
          * @visibility frontend
@@ -240,7 +260,8 @@ export interface Config {
         }[];
         translationResources?: {
           module?: string;
-          importName?: string;
+          importName: string;
+          ref?: string;
         }[];
       };
     };
@@ -257,13 +278,32 @@ export interface Config {
   includeTransitiveGroupOwnership?: boolean;
 
   /**
-   * Allows you to customize RHDH Metadata card
+   * Allows you to customize RHDH Metadata card information
    * @deepVisibility frontend
    */
   buildInfo?: {
+    /**
+     * Allows setting a title for the build information card
+     * @visibility frontend
+     */
     title: string;
+    /**
+     * Optional translation key for the title.
+     * @visibility frontend
+     */
+    titleKey?: string;
+    /**
+     * Allows setting a content for the build information card
+     * @visibility frontend
+     */
     card: { [key: string]: string };
-    full?: boolean;
+    /**
+     * Allows setting if the default build information (RHDH Version, Backstage Version, etc.) should be overridden
+     * Contents will be overridden if not set to false
+     * @default true
+     * @visibility frontend
+     */
+    overrideBuildInfo?: boolean;
   };
 
   /**
@@ -284,5 +324,22 @@ export interface Config {
      * @visibility frontend
      */
     defaultLocale?: string;
+    /**
+     * Allows listing of paths to JSON files that contain translation overrides.
+     * These overrides let you replace or extend the default translations provided by plugins.
+     * @visibility frontend
+     */
+    overrides?: string[];
+  };
+  /**
+   * Configuration options for your user settings.
+   * @deepVisibility frontend
+   */
+  userSettings?: {
+    /**
+     * The persistence mode for user settings.
+     * @visibility frontend
+     */
+    persistence: 'browser' | 'database';
   };
 }

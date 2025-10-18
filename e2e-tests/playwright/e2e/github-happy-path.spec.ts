@@ -1,12 +1,12 @@
 import { test, expect, Page, BrowserContext } from "@playwright/test";
 import { UIhelper } from "../utils/ui-helper";
 import { Common, setupBrowser } from "../utils/common";
-import { RESOURCES } from "../support/testData/resources";
+import { RESOURCES } from "../support/test-data/resources";
 import {
   BackstageShowcase,
   CatalogImport,
 } from "../support/pages/catalog-import";
-import { TEMPLATES } from "../support/testData/templates";
+import { TEMPLATES } from "../support/test-data/templates";
 
 let page: Page;
 let context: BrowserContext;
@@ -21,6 +21,11 @@ test.describe.serial("GitHub Happy path", async () => {
     "https://github.com/redhat-developer/rhdh/blob/main/catalog-entities/all.yaml";
 
   test.beforeAll(async ({ browser }, testInfo) => {
+    test.info().annotations.push({
+      type: "component",
+      description: "core",
+    });
+
     ({ page, context } = await setupBrowser(browser, testInfo));
     uiHelper = new UIhelper(page);
     common = new Common(page);
@@ -43,8 +48,7 @@ test.describe.serial("GitHub Happy path", async () => {
   });
 
   test("Verify Profile is Github Account Name in the Settings page", async () => {
-    await page.goto("/settings");
-    await expect(page).toHaveURL("/settings");
+    await uiHelper.goToPageUrl("/settings", "Settings");
     await uiHelper.verifyHeading(process.env.GH_USER2_ID);
     await uiHelper.verifyHeading(`User Entity: ${process.env.GH_USER2_ID}`);
   });
@@ -103,10 +107,15 @@ test.describe.serial("GitHub Happy path", async () => {
       timeout: 20000,
     });
     // Optionally, verify that the current URL contains the expected path
-    await expect(page.url()).toContain(expectedPath);
+    expect(page.url()).toContain(expectedPath);
 
     await common.clickOnGHloginPopup();
     await uiHelper.verifyLink("About RHDH", { exact: false });
+
+    // Workaround for RHDHBUGS-2091: Change the size to 10 to avoid information not being displayed
+    await page.getByRole("button", { name: "20" }).click();
+    await page.getByRole("option", { name: "10", exact: true }).click();
+
     await backstageShowcase.verifyPRStatisticsRendered();
     await backstageShowcase.verifyAboutCardIsDisplayed();
   });
@@ -179,35 +188,45 @@ test.describe.serial("GitHub Happy path", async () => {
     await backstageShowcase.verifyPRRowsPerPage(20, allPRs);
   });
 
-  test("Verify that the CI tab renders 5 most recent github actions and verify the table properly displays the actions when page sizes are changed and filters are applied", async () => {
-    await page.locator("a").getByText("CI", { exact: true }).first().click();
-    await common.checkAndClickOnGHloginPopup();
+  // TODO: https://issues.redhat.com/browse/RHDHBUGS-2099
+  test.fixme(
+    "Verify that the CI tab renders 5 most recent github actions and verify the table properly displays the actions when page sizes are changed and filters are applied",
+    async () => {
+      await page.locator("a").getByText("CI", { exact: true }).first().click();
+      await common.checkAndClickOnGHloginPopup();
 
-    const workflowRuns = await backstageShowcase.getWorkflowRuns();
+      const workflowRuns = await backstageShowcase.getWorkflowRuns();
 
-    for (const workflowRun of workflowRuns.slice(0, 5)) {
-      await uiHelper.verifyText(workflowRun.id);
-    }
-  });
+      for (const workflowRun of workflowRuns.slice(0, 5)) {
+        await uiHelper.verifyText(workflowRun.id);
+      }
+    },
+  );
 
-  test("Click on the Dependencies tab and verify that all the relations have been listed and displayed", async () => {
-    test.fixme();
-    await uiHelper.clickTab("Dependencies");
-    for (const resource of RESOURCES) {
-      const resourceElement = page.locator(
-        `#workspace:has-text("${resource}")`,
-      );
-      await resourceElement.scrollIntoViewIfNeeded();
-      await expect(resourceElement).toBeVisible();
-    }
-  });
+  // TODO: https://issues.redhat.com/browse/RHDHBUGS-2099
+  test.fixme(
+    "Click on the Dependencies tab and verify that all the relations have been listed and displayed",
+    async () => {
+      await uiHelper.clickTab("Dependencies");
+      for (const resource of RESOURCES) {
+        const resourceElement = page.locator(
+          `#workspace:has-text("${resource}")`,
+        );
+        await resourceElement.scrollIntoViewIfNeeded();
+        await expect(resourceElement).toBeVisible();
+      }
+    },
+  );
 
-  test("Sign out and verify that you return back to the Sign in page", async () => {
-    test.fixme();
-    await uiHelper.goToSettingsPage();
-    await common.signOut();
-    context.clearCookies();
-  });
+  // TODO: https://issues.redhat.com/browse/RHDHBUGS-2099
+  test.fixme(
+    "Sign out and verify that you return back to the Sign in page",
+    async () => {
+      await uiHelper.goToPageUrl("/settings", "Settings");
+      await common.signOut();
+      await context.clearCookies();
+    },
+  );
 
   test.afterAll(async () => {
     await page.close();

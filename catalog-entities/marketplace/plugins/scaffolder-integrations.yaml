@@ -30,7 +30,7 @@ spec:
     - backstage-plugin-scaffolder-backend-module-gerrit
     - backstage-plugin-scaffolder-backend-module-github
     - backstage-plugin-scaffolder-backend-module-gitlab
-    - parfuemerie-douglas-scaffolder-backend-module-azure-repositorie
+    - parfuemerie-douglas-scaffolder-backend-module-azure-repositories
     - roadiehq-scaffolder-backend-argocd
     - roadiehq-scaffolder-backend-module-http-request
     - roadiehq-scaffolder-backend-module-utils

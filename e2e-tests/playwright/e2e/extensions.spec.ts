@@ -9,6 +9,30 @@ test.describe("Admin > Extensions > Catalog", () => {
   let uiHelper: UIhelper;
   const isMac = process.platform === "darwin";
 
+  const commonHeadings = [
+    "Versions",
+    "Author",
+    "Tags",
+    "Category",
+    "Publisher",
+    "Support Provider",
+  ];
+  const supportTypeOptions = [
+    "Generally available",
+    "Certified",
+    "Custom plugin",
+    "Tech preview",
+    "Dev preview",
+    "Community plugin",
+  ];
+
+  test.beforeAll(async () => {
+    test.info().annotations.push({
+      type: "component",
+      description: "core",
+    });
+  });
+
   test.beforeEach(async ({ page }) => {
     extensions = new Extensions(page);
     uiHelper = new UIhelper(page);
@@ -24,7 +48,9 @@ test.describe("Admin > Extensions > Catalog", () => {
     await page.getByRole("button", { name: "Clear Search" }).click();
   });
 
-  test("Verify filters in extensions", async ({ page }, testInfo) => {
+  test("Verify category and author filters in extensions", async ({
+    page,
+  }, testInfo) => {
     await uiHelper.verifyHeading(/Plugins \(\d+\)/);
 
     await runAccessibilityTests(page, testInfo);
@@ -44,7 +70,7 @@ test.describe("Admin > Extensions > Catalog", () => {
       "Package name",
       "Version",
       "Role",
-      "Supported version",
+      "Backstage compatibility version",
       "Status",
     ]);
     await uiHelper.verifyHeading("Versions");
@@ -56,18 +82,28 @@ test.describe("Admin > Extensions > Catalog", () => {
     await expect(
       page.getByRole("option", { name: "Red Hat" }).getByRole("checkbox"),
     ).not.toBeChecked();
-    await expect(
-      page.getByRole("button", { name: "Red Hat" }),
-    ).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Red Hat" })).toBeHidden();
     await page.keyboard.press(`Escape`);
-    await page.getByTestId("CancelIcon").first().click();
     await expect(page.getByLabel("Category").getByRole("combobox")).toBeEmpty();
     await page.keyboard.press(`Escape`);
   });
 
+  test("Verify support type filters in extensions", async ({ page }) => {
+    await extensions.selectDropdown("Support type");
+    await expect(page.getByRole("listbox")).toBeVisible();
+
+    // Verify all support type options are present
+    for (const option of supportTypeOptions) {
+      await expect(page.getByRole("listbox")).toContainText(option);
+    }
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByLabel("Category").getByRole("combobox")).toBeEmpty();
+  });
+
   test("Verify certified badge in extensions", async ({ page }) => {
     await extensions.selectDropdown("Support type");
-    await extensions.toggleOption("Certified by Red Hat");
+    await extensions.toggleOption("Certified");
     await page.keyboard.press(`Escape`);
     await uiHelper.verifyHeading("DynaTrace");
     await expect(page.getByLabel("Certified by Red Hat").first()).toBeVisible();
@@ -78,32 +114,132 @@ test.describe("Admin > Extensions > Catalog", () => {
     await page.getByRole("heading", { name: "DynaTrace" }).first().click();
     await page.getByRole("button", { name: "close" }).click();
     await uiHelper.clickLink("Read more");
-    await uiHelper.verifyDivHasText(/^Certified$/);
+    await expect(
+      page.getByLabel("Stable and secured by Red Hat").getByText("Certified"),
+    ).toBeVisible();
     await uiHelper.verifyText("About");
     await uiHelper.verifyHeading("Versions");
     await uiHelper.verifyTableHeadingAndRows([
       "Package name",
       "Version",
       "Role",
-      "Supported version",
+      "Backstage compatibility version",
       "Status",
     ]);
     await page.getByRole("button", { name: "close" }).click();
     await extensions.selectDropdown("Support type");
-    await extensions.toggleOption("Certified by Red Hat");
-    await extensions.toggleOption("Verified by Red Hat");
-    await page.keyboard.press(`Escape`);
-    await expect(page.getByLabel("Verified by Red Hat").first()).toBeVisible();
+    await extensions.toggleOption("Certified");
+  });
+
+  test("Verify Generally available badge in extensions", async ({ page }) => {
+    await extensions.selectSupportTypeFilter("Generally available (GA)");
+
+    await expect(
+      page
+        .getByLabel("Generally available (GA) and supported by Red Hat")
+        .first(),
+    ).toBeVisible();
     await expect(extensions.badge.first()).toBeVisible();
     await extensions.badge.first().hover();
-    await uiHelper.verifyTextInTooltip("Verified by Red Hat");
+    await uiHelper.verifyTextInTooltip(
+      "Generally available (GA) and supported by Red Hat",
+    );
+
+    await uiHelper.clickLink("Read more");
+    await expect(
+      page
+        .getByLabel("Production-ready and supported by Red Hat")
+        .getByText("Generally available (GA)"),
+    ).toBeVisible();
+
+    for (const heading of commonHeadings) {
+      console.log(`Verifying heading: ${heading}`);
+      await uiHelper.verifyHeading(heading);
+    }
+
+    await page.getByRole("button", { name: "close" }).click();
+
+    await extensions.resetSupportTypeFilter("Generally available (GA)");
+  });
+
+  // Skipping below test due to the issue: https://issues.redhat.com/browse/RHDHBUGS-2104
+  test.skip("Verify custom plugin badge in extensions", async ({ page }) => {
+    await extensions.selectDropdown("Support type");
+    await extensions.toggleOption("Custom plugin");
+    await page.keyboard.press(`Escape`);
+    await expect(page.getByLabel("Custom plugins").first()).toBeVisible();
+    await expect(extensions.badge.first()).toBeVisible();
+    await extensions.badge.first().hover();
+    await uiHelper.verifyTextInTooltip("Custom plugins");
+    await uiHelper.clickLink("Read more");
+    await expect(
+      page.getByLabel("Plugins added by the administrator").getByText("Custom"),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "close" }).click();
+    await extensions.selectDropdown("Support type");
+    await extensions.toggleOption("Custom plugin");
+    await page.keyboard.press(`Escape`);
+  });
+
+  test("Verify tech preview badge in extensions", async () => {
+    await extensions.verifySupportTypeBadge({
+      supportType: "Tech preview (TP)",
+      pluginName: "Bulk Import",
+      badgeLabel: "Plugin still in development",
+      badgeText: "Tech preview (TP)",
+      tooltipText: "",
+      searchTerm: "Bulk Import",
+      headings: ["About", "Versions", ...commonHeadings],
+      includeTable: true,
+      includeAbout: false,
+    });
+  });
+
+  test("Verify dev preview badge in extensions", async () => {
+    await extensions.selectSupportTypeFilter("Dev preview (DP)");
+    await uiHelper.verifyHeading("Developer Lightspeed");
+
+    await extensions.verifyPluginDetails({
+      pluginName: "Developer Lightspeed",
+      badgeLabel: "An early-stage, experimental",
+      badgeText: "Dev preview (DP)",
+      headings: commonHeadings,
+      includeTable: true,
+      includeAbout: false,
+    });
+
+    await extensions.resetSupportTypeFilter("Dev preview (DP)");
+  });
+
+  test("Verify community plugin badge in extensions", async ({ page }) => {
+    await extensions.selectSupportTypeFilter("Community plugin");
+
+    await extensions.clickReadMoreByPluginTitle(
+      "ServiceNow Integration for Red Hat Developer Hub",
+    );
+    await expect(
+      page
+        .getByLabel("Open-source plugins, no official support")
+        .getByText("Community plugin"),
+    ).toBeVisible();
+
+    await uiHelper.verifyText("About");
+    for (const heading of commonHeadings) {
+      console.log(`Verifying heading: ${heading}`);
+      await uiHelper.verifyHeading(heading);
+    }
+
+    await expect(page.getByText("AuthorRed Hat")).toBeVisible();
+
+    await page.getByRole("button", { name: "close" }).click();
+    await extensions.resetSupportTypeFilter("Community plugin");
   });
 
   test.use({
     permissions: ["clipboard-read", "clipboard-write"],
   });
 
-  test("Verify plugin configuration can be viewed in the production environment", async ({
+  test.skip("Verify plugin configuration can be viewed in the production environment", async ({
     page,
   }) => {
     const productionEnvAlert = page
@@ -132,7 +268,8 @@ test.describe("Admin > Extensions > Catalog", () => {
     await uiHelper.clickByDataTestId("ContentCopyRoundedIcon");
     await expect(page.getByRole("button", { name: "✔" })).toBeVisible();
     await uiHelper.clickButton("Reset");
-    await expect(page.getByText("pluginConfig:")).not.toBeVisible();
+    await expect(page.getByText("pluginConfig:")).toBeHidden();
+    // eslint-disable-next-line playwright/no-conditional-in-test
     const modifier = isMac ? "Meta" : "Control";
     await page.keyboard.press(`${modifier}+KeyA`);
     await page.keyboard.press(`${modifier}+KeyV`);

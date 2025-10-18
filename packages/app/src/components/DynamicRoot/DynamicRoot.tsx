@@ -16,9 +16,14 @@ import {
   IdentityApi,
   identityApiRef,
 } from '@backstage/core-plugin-api';
-import { TranslationResource } from '@backstage/core-plugin-api/alpha';
+import {
+  appLanguageApiRef,
+  translationApiRef,
+  TranslationResource,
+} from '@backstage/core-plugin-api/alpha';
 
 import { useThemes } from '@red-hat-developer-hub/backstage-plugin-theme';
+import { I18nextTranslationApi } from '@red-hat-developer-hub/backstage-plugin-translations';
 import DynamicRootContext, {
   ComponentRegistry,
   DynamicRootConfig,
@@ -33,8 +38,6 @@ import DynamicRootContext, {
 import { AppsConfig } from '@scalprum/core';
 import { useScalprum } from '@scalprum/react-core';
 
-import { catalogImportTranslations } from '../../translations/catalog-import/catalog-import';
-import { scaffolderTranslations } from '../../translations/scaffolder/scaffolder';
 import { TranslationConfig } from '../../types/types';
 import bindAppRoutes from '../../utils/dynamicUI/bindAppRoutes';
 import extractDynamicConfig, {
@@ -43,7 +46,10 @@ import extractDynamicConfig, {
   DynamicRoute,
 } from '../../utils/dynamicUI/extractDynamicConfig';
 import initializeRemotePlugins from '../../utils/dynamicUI/initializeRemotePlugins';
-import { catalogTranslations } from '../catalog/translations/catalog';
+import { getDefaultLanguage } from '../../utils/language/language';
+import { fetchOverrideTranslations } from '../../utils/translations/fetchOverrideTranslations';
+import { staticTranslationConfigs } from '../../utils/translations/staticTranslationConfigs';
+import { processAllTranslationResources } from '../../utils/translations/translationResourceProcessor';
 import { MenuIcon } from '../Root/MenuIcon';
 import CommonIcons from './CommonIcons';
 import defaultAppComponents from './defaultAppComponents';
@@ -95,6 +101,7 @@ export const DynamicRoot = ({
   staticPluginStore = {},
   scalprumConfig,
   translationConfig,
+  baseUrl,
 }: {
   afterInit: () => Promise<{ default: React.ComponentType }>;
   // Static APIs
@@ -102,6 +109,7 @@ export const DynamicRoot = ({
   dynamicPlugins: DynamicPluginConfig;
   staticPluginStore?: StaticPlugins;
   scalprumConfig: AppsConfig;
+  baseUrl: string;
   translationConfig?: TranslationConfig;
 }) => {
   const app = useRef<BackstageApp>();
@@ -534,20 +542,30 @@ export const DynamicRoot = ({
       )
       .find(candidate => candidate !== undefined);
 
-    const dynamicTranslationResources = translationResources?.reduce<
-      TranslationResource[]
-    >((acc, { scope, module, importName }) => {
-      const resource = allPlugins[scope]?.[module]?.[importName];
-      if (resource && (resource as TranslationResource<string>).id) {
-        acc.push(resource as TranslationResource<string>);
-      } else {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `Plugin ${scope} is not configured properly: ${module}.${importName} not found, ignoring translation resource: ${importName}`,
-        );
-      }
-      return acc;
-    }, []);
+    let overrideTranslations: Record<
+      string,
+      Record<string, Record<string, string>>
+    > = {};
+
+    overrideTranslations = await fetchOverrideTranslations(baseUrl);
+
+    // Process dynamic translation resources
+    const dynamicTranslationConfigs =
+      translationResources?.map(({ scope, module, importName, ref }) => ({
+        scope,
+        module,
+        importName,
+        ref,
+      })) || [];
+
+    // Process static translation resources using imported configuration
+    const { allResources: allTranslationResources, allRefs: translationRefs } =
+      processAllTranslationResources(
+        dynamicTranslationConfigs,
+        staticTranslationConfigs,
+        allPlugins,
+        overrideTranslations,
+      );
 
     if (!app.current) {
       const filteredStaticThemes = themes.filter(
@@ -563,15 +581,22 @@ export const DynamicRoot = ({
       app.current = createApp({
         __experimentalTranslations: {
           availableLanguages: translationConfig?.locales ?? ['en'],
-          defaultLanguage: translationConfig?.defaultLocale,
-          resources: [
-            catalogTranslations,
-            scaffolderTranslations,
-            catalogImportTranslations,
-            ...(dynamicTranslationResources ?? []),
-          ],
+          defaultLanguage: getDefaultLanguage(translationConfig),
         },
-        apis: [...filteredStaticApis, ...remoteApis, ...multipleAnalyticsApi],
+        apis: [
+          ...filteredStaticApis,
+          ...remoteApis,
+          ...multipleAnalyticsApi,
+          createApiFactory({
+            api: translationApiRef,
+            deps: { languageApi: appLanguageApiRef },
+            factory: ({ languageApi }) =>
+              I18nextTranslationApi.create({
+                languageApi,
+                resources: allTranslationResources,
+              }) as any,
+          }),
+        ],
         bindRoutes({ bind }) {
           bindAppRoutes(bind, resolvedRouteBindingTargets, routeBindings);
         },
@@ -601,7 +626,7 @@ export const DynamicRoot = ({
     dynamicRootConfig.scaffolderFieldExtensions =
       scaffolderFieldExtensionComponents;
     dynamicRootConfig.techdocsAddons = techdocsAddonComponents;
-
+    dynamicRootConfig.translationResources = allTranslationResources;
     // make the dynamic UI configuration available to DynamicRootContext consumers
     setComponentRegistry({
       AppProvider: app.current.getProvider(),
@@ -613,6 +638,7 @@ export const DynamicRoot = ({
       providerSettings,
       scaffolderFieldExtensions: scaffolderFieldExtensionComponents,
       techdocsAddons: techdocsAddonComponents,
+      translationRefs,
     });
     afterInit().then(({ default: Component }) => {
       setChildComponent(() => Component);
@@ -627,6 +653,7 @@ export const DynamicRoot = ({
     staticPluginStore,
     themes,
     translationConfig,
+    baseUrl,
   ]);
 
   useEffect(() => {

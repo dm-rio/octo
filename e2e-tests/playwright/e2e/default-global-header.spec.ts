@@ -6,6 +6,13 @@ test.describe("Default Global Header", () => {
   let common: Common;
   let uiHelper: UIhelper;
 
+  test.beforeAll(async () => {
+    test.info().annotations.push({
+      type: "component",
+      description: "navigation",
+    });
+  });
+
   test.beforeEach(async ({ page }) => {
     uiHelper = new UIhelper(page);
     common = new Common(page);
@@ -65,7 +72,7 @@ test.describe("Default Global Header", () => {
     await helpDropdownButton.click();
     await page.waitForTimeout(500);
 
-    expect(await uiHelper.isTextVisible("Support")).toBeTruthy();
+    await uiHelper.verifyTextVisible("Support");
 
     const [newTab] = await Promise.all([
       context.waitForEvent("page"),
@@ -82,10 +89,10 @@ test.describe("Default Global Header", () => {
 
   test("Verify Profile Dropdown behaves as expected", async ({ page }) => {
     await uiHelper.openProfileDropdown();
-    expect(await uiHelper.isLinkVisible("Settings")).toBeTruthy();
-    expect(await uiHelper.isTextVisible("Sign out")).toBeTruthy();
+    await uiHelper.verifyLinkVisible("Settings");
+    await uiHelper.verifyTextVisible("Sign out");
 
-    await uiHelper.clickLink({ href: "/settings" });
+    await page.getByRole("menuitem", { name: "Settings" }).click();
     await uiHelper.verifyHeading("Settings");
 
     await uiHelper.goToMyProfilePage();
@@ -107,7 +114,7 @@ test.describe("Default Global Header", () => {
     await searchBar.fill("test query term");
     expect(await uiHelper.isBtnVisibleByTitle("Clear")).toBeTruthy();
     const dropdownList = page.locator(`ul[role="listbox"]`);
-    expect(await dropdownList.isVisible()).toBeTruthy();
+    await expect(dropdownList).toBeVisible();
     await searchBar.press("Enter");
     await uiHelper.verifyHeading("Search");
     const searchResultPageInput = page.locator(

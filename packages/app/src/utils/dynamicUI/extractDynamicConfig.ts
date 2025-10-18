@@ -9,11 +9,13 @@ import {
 } from '@red-hat-developer-hub/plugin-utils';
 
 import { hasAnnotation, isType } from '../../components/catalog/utils';
+import { DynamicTranslationResource } from '../../types/types';
 import { extractMenuItems } from './extractDynamicConfigFrontend';
 
 export type DynamicRouteMenuItem =
   | {
       text: string;
+      textKey?: string;
       icon: string;
       parent?: string;
       priority?: number;
@@ -37,6 +39,7 @@ export type MenuItemConfig = {
 export type MenuItem = {
   name: string;
   title: string;
+  titleKey?: string;
   icon: string;
   children: MenuItem[];
   priority?: number;
@@ -141,12 +144,6 @@ type SignInPageEntry = {
   importName: string;
 };
 
-type TranslationResource = {
-  scope: string;
-  module: string;
-  importName: string;
-};
-
 type ProviderSetting = {
   title: string;
   description: string;
@@ -177,7 +174,7 @@ type CustomProperties = {
   signInPage: SignInPageEntry;
   techdocsAddons?: TechdocsAddon[];
   themes?: ThemeEntry[];
-  translationResources?: TranslationResource[];
+  translationResources?: DynamicTranslationResource[];
 };
 
 export type FrontendConfig = {
@@ -204,7 +201,7 @@ type DynamicConfig = {
   signInPages: SignInPageEntry[];
   techdocsAddons: TechdocsAddon[];
   themes: ThemeEntry[];
-  translationResources: TranslationResource[];
+  translationResources: DynamicTranslationResource[];
 };
 
 /**
@@ -409,13 +406,15 @@ function extractDynamicConfig(
   );
 
   config.translationResources = Object.entries(frontend).reduce<
-    TranslationResource[]
+    DynamicTranslationResource[]
   >((accTranslationResources, [scope, { translationResources }]) => {
     accTranslationResources.push(
       ...(translationResources ?? []).map(resource => ({
         ...resource,
         module: resource.module ?? 'PluginRoot',
         importName: resource.importName ?? 'default',
+        ref: resource.ref ?? null,
+        jsonTranslations: resource.jsonTranslations ?? [],
         scope,
       })),
     );

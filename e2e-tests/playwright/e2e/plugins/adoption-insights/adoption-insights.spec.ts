@@ -3,7 +3,16 @@ import { Common } from "../../../utils/common";
 import { UIhelper } from "../../../utils/ui-helper";
 import { TestHelper } from "../../../support/pages/adoption-insights";
 
+/* eslint-disable playwright/no-conditional-in-test */
+
 test.describe.serial("Test Adoption Insights", () => {
+  test.beforeAll(async () => {
+    test.info().annotations.push({
+      type: "component",
+      description: "plugins",
+    });
+  });
+
   test.describe
     .serial("Test Adoption Insights plugin: load permission policies and conditions from files", () => {
     let context;
@@ -22,7 +31,7 @@ test.describe.serial("Test Adoption Insights", () => {
       uiHelper = new UIhelper(page);
       testHelper = new TestHelper(page);
       await new Common(page).loginAsKeycloakUser();
-      await page.goto("/");
+      await uiHelper.goToPageUrl("/", "Welcome back!");
     });
 
     test.afterAll(async () => {
@@ -52,7 +61,7 @@ test.describe.serial("Test Adoption Insights", () => {
       });
       await expect(datePicker).toBeVisible();
       await datePicker.getByRole("button", { name: "Cancel" }).click();
-      await expect(datePicker).not.toBeVisible();
+      await expect(datePicker).toBeHidden();
 
       await Promise.all([
         testHelper.waitForPanelApiCalls(page),
@@ -66,7 +75,9 @@ test.describe.serial("Test Adoption Insights", () => {
       });
       await expect(panel.locator(".recharts-surface")).toBeVisible();
       await expect(
-        panel.getByText(/^\d+ active users per hour$/),
+        panel.getByText(
+          /^Average peak active user count was \d+ per hour for this period\.$/,
+        ),
       ).toBeVisible();
       await expect(
         panel.getByRole("button", { name: "Export CSV" }),
@@ -83,7 +94,7 @@ test.describe.serial("Test Adoption Insights", () => {
     });
 
     test("Data shows in Top plugins Entity", async () => {
-      await testHelper.expectTopEntriesToBePresent("Top 3 plugins");
+      await testHelper.expectTopEntriesToBePresent("plugins");
     });
 
     test("Rest of the panels are visible", async () => {
@@ -143,15 +154,15 @@ test.describe.serial("Test Adoption Insights", () => {
       });
 
       test("Visited component shows up in top catalog entities", async () => {
-        await testHelper.expectTopEntriesToBePresent("Top catalog entities");
+        await testHelper.expectTopEntriesToBePresent("catalog entities");
       });
 
       test("Visited techdoc shows up in top techdocs", async () => {
-        await testHelper.expectTopEntriesToBePresent("Top 3 techdocs");
+        await testHelper.expectTopEntriesToBePresent("techdocs");
       });
 
       test("Visited templates shows in top templates", async () => {
-        await testHelper.expectTopEntriesToBePresent("Top 3 templates");
+        await testHelper.expectTopEntriesToBePresent("templates");
       });
 
       test("Changes are Reflecting in panels", async () => {
@@ -225,7 +236,7 @@ test.describe.serial("Test Adoption Insights", () => {
           const firstRow = panel
             .locator("table.v5-MuiTable-root tbody tr")
             .first();
-          const finalViews = await firstRow.locator("td").last();
+          const finalViews = firstRow.locator("td").last();
           await firstRow.waitFor({ state: "visible" });
           const finalViewsCount = await finalViews.textContent();
           expect(Number(finalViewsCount)).toBeGreaterThan(
@@ -240,7 +251,7 @@ test.describe.serial("Test Adoption Insights", () => {
         });
         await expect(panel.locator(".recharts-surface")).toBeVisible();
         await expect(panel).toContainText(
-          /An average of \d+ searches per hour were conducted during this period\./,
+          /Average search count was \d+ per \w+ for this period\./,
         );
         const recount = await testHelper.getCountFromPanel(panel);
         expect(recount).toBeGreaterThan(initialSearchCount);

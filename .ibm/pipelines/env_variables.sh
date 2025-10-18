@@ -1,6 +1,29 @@
 #!/bin/bash
 # shellcheck disable=SC2034
-set -a  # Automatically export all variables
+set -a # Automatically export all variables
+
+# Define log file names and directories.
+LOGFILE="test-log"
+
+# Populated by OpenShift CI or the initial CI scripts
+# Addition to JOB_NAME, TAG_NAME, SHARED_DIR, ARTIFACT_DIR
+# This prevents nounset errors when running locally
+# https://docs.ci.openshift.org/docs/architecture/step-registry/#available-environment-variables
+# https://docs.prow.k8s.io/docs/jobs/#job-environment-variables
+JOB_NAME="${JOB_NAME:-unknown-job}"
+TAG_NAME="${TAG_NAME:-}"
+OPENSHIFT_CI="${OPENSHIFT_CI:-false}"
+REPO_OWNER="${REPO_OWNER:-redhat-developer}"
+REPO_NAME="${REPO_NAME:-rhdh}"
+PULL_NUMBER="${PULL_NUMBER:-}"
+BUILD_ID="${BUILD_ID:-unknown-build}"
+RELEASE_BRANCH_NAME="${RELEASE_BRANCH_NAME:-main}"
+K8S_CLUSTER_TOKEN="${K8S_CLUSTER_TOKEN:-}"
+K8S_CLUSTER_URL="${K8S_CLUSTER_URL:-}"
+SHARED_DIR="${SHARED_DIR:-$DIR/shared_dir}"
+ARTIFACT_DIR="${ARTIFACT_DIR:-$DIR/artifact_dir}"
+mkdir -p "${SHARED_DIR}"
+mkdir -p "${ARTIFACT_DIR}"
 
 #ENVS and Vault Secrets
 HELM_CHART_VALUE_FILE_NAME="values_showcase.yaml"
@@ -34,7 +57,7 @@ NAME_SPACE_RUNTIME="${NAME_SPACE_RUNTIME:-showcase-runtime}"
 NAME_SPACE_POSTGRES_DB="${NAME_SPACE_POSTGRES_DB:-postgress-external-db}"
 NAME_SPACE_SANITY_PLUGINS_CHECK="showcase-sanity-plugins"
 OPERATOR_MANAGER='rhdh-operator'
-CHART_MAJOR_VERSION="1.7"
+CHART_MAJOR_VERSION="1.8"
 GITHUB_APP_APP_ID=$(cat /tmp/secrets/GITHUB_APP_3_APP_ID)
 GITHUB_APP_CLIENT_ID=$(cat /tmp/secrets/GITHUB_APP_3_CLIENT_ID)
 GITHUB_APP_PRIVATE_KEY=$(cat /tmp/secrets/GITHUB_APP_3_PRIVATE_KEY)
@@ -162,6 +185,8 @@ KEYCLOAK_AUTH_REALM=$(cat /tmp/secrets/KEYCLOAK_AUTH_REALM)
 REGISTRY_REDHAT_IO_SERVICE_ACCOUNT_DOCKERCONFIGJSON=$(cat /tmp/secrets/REGISTRY_REDHAT_IO_SERVICE_ACCOUNT_DOCKERCONFIGJSON)
 
 IS_OPENSHIFT=""
+CONTAINER_PLATFORM=""
+CONTAINER_PLATFORM_VERSION=""
 
 GITHUB_OAUTH_APP_ID=$(cat /tmp/secrets/GITHUB_OAUTH_APP_ID)
 GITHUB_OAUTH_APP_SECRET=$(cat /tmp/secrets/GITHUB_OAUTH_APP_SECRET)
@@ -170,4 +195,4 @@ GITHUB_OAUTH_APP_SECRET_ENCODED=$(printf "%s" $GITHUB_OAUTH_APP_SECRET | base64 
 
 BACKEND_SECRET=$(printf temp | base64 | tr -d '\n')
 
-set +a  # Stop automatically exporting variables
+set +a # Stop automatically exporting variables

@@ -18,13 +18,15 @@ import {
   SidebarSpace,
 } from '@backstage/core-components';
 import { configApiRef, useApi } from '@backstage/core-plugin-api';
+import { useTranslationRef } from '@backstage/core-plugin-api/alpha';
 import { MyGroupsSidebarItem } from '@backstage/plugin-org';
 import { usePermission } from '@backstage/plugin-permission-react';
 import { SidebarSearchModal } from '@backstage/plugin-search';
+import { searchTranslationRef } from '@backstage/plugin-search/alpha';
 import { Settings as SidebarSettings } from '@backstage/plugin-user-settings';
+import { userSettingsTranslationRef } from '@backstage/plugin-user-settings/alpha';
 
 import { policyEntityCreatePermission } from '@backstage-community/plugin-rbac-common';
-import { AdminIcon } from '@internal/plugin-dynamic-plugins-info';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ExpandMore from '@mui/icons-material/ExpandMore';
@@ -40,6 +42,8 @@ import DynamicRootContext, {
   ResolvedMenuItem,
 } from '@red-hat-developer-hub/plugin-utils';
 
+import { useLanguagePreference } from '../../hooks/useLanguagePreference';
+import { useTranslation } from '../../hooks/useTranslation';
 import { ApplicationHeaders } from './ApplicationHeaders';
 import { MenuIcon } from './MenuIcon';
 import { SidebarLogo } from './SidebarLogo';
@@ -190,17 +194,24 @@ const renderExpandIcon = (expand: boolean) => {
   );
 };
 
-const getMenuItem = (menuItem: ResolvedMenuItem, isNestedMenuItem = false) => {
+const getMenuItem = (
+  menuItem: ResolvedMenuItem,
+  isNestedMenuItem = false,
+  getMenuText: (item: ResolvedMenuItem) => string,
+) => {
   const menuItemStyle = {
     paddingLeft: isNestedMenuItem ? '2rem' : '',
   };
+  const translatedText = getMenuText(menuItem);
   return menuItem.name === 'default.my-group' ? (
     <Box key={menuItem.name} sx={{ '& a': menuItemStyle }}>
       <MyGroupsSidebarItem
         key={menuItem.name}
         icon={renderIcon(menuItem.icon ?? '')}
-        singularTitle={menuItem.title}
-        pluralTitle={`${menuItem.title}s`}
+        // Plural localization will be address in
+        // https://issues.redhat.com/browse/RHDHBUGS-2077
+        singularTitle={translatedText}
+        pluralTitle={`${translatedText}s`}
       />
     </Box>
   ) : (
@@ -208,7 +219,7 @@ const getMenuItem = (menuItem: ResolvedMenuItem, isNestedMenuItem = false) => {
       key={menuItem.name}
       icon={renderIcon(menuItem.icon ?? '')}
       to={menuItem.to ?? ''}
-      text={menuItem.title}
+      text={translatedText}
       style={menuItemStyle}
     />
   );
@@ -238,12 +249,15 @@ const ExpandableMenuList: FC<ExpandableMenuListProps> = ({
   );
 };
 
-export const Root = ({ children }: PropsWithChildren<unknown>) => {
+export const Root = ({ children }: PropsWithChildren<{}>) => {
   const aboveSidebarHeaderRef = useRef<HTMLDivElement>(null);
   const [aboveSidebarHeaderHeight, setAboveSidebarHeaderHeight] = useState(0);
   const aboveMainContentHeaderRef = useRef<HTMLDivElement>(null);
   const [aboveMainContentHeaderHeight, setAboveMainContentHeaderHeight] =
     useState(0);
+
+  const { t: searchT } = useTranslationRef(searchTranslationRef);
+  const { t: userSettingsT } = useTranslationRef(userSettingsTranslationRef);
 
   useLayoutEffect(() => {
     if (!aboveSidebarHeaderRef.current) return () => {};
@@ -298,6 +312,21 @@ export const Root = ({ children }: PropsWithChildren<unknown>) => {
 
   const [openItems, setOpenItems] = useState<{ [key: string]: boolean }>({});
 
+  const { loading: loadingPermission, allowed: canDisplayRBACMenuItem } =
+    usePermission({
+      permission: policyEntityCreatePermission,
+      resourceRef: undefined,
+    });
+  useLanguagePreference();
+  const { t } = useTranslation();
+
+  const getMenuText = (menuItem: ResolvedMenuItem) => {
+    if (menuItem.titleKey) {
+      return t(menuItem.titleKey as any, {});
+    }
+    return menuItem.title;
+  };
+
   const handleClick = (itemName: string) => {
     setOpenItems(prevOpenItems => ({
       ...prevOpenItems,
@@ -333,7 +362,7 @@ export const Root = ({ children }: PropsWithChildren<unknown>) => {
           <SidebarItem
             key={child.title}
             icon={() => null}
-            text={child.title}
+            text={getMenuText(child)}
             to={child.to ?? ''}
           />
         )}
@@ -377,12 +406,12 @@ export const Root = ({ children }: PropsWithChildren<unknown>) => {
               }}
             >
               {child.children && child.children.length === 0 ? (
-                getMenuItem(child, true)
+                getMenuItem(child, true, getMenuText)
               ) : (
                 <>
                   <SidebarItem
                     icon={renderIcon(child.icon ?? '')}
-                    text={child.title}
+                    text={getMenuText(child)}
                     onClick={() => handleClick(child.name)}
                   >
                     {child.children!.length > 0 &&
@@ -407,8 +436,8 @@ export const Root = ({ children }: PropsWithChildren<unknown>) => {
       : menuItems.filter(mi => !mi.name.startsWith('default.'));
 
     menuItemArray = isBottomMenuSection
-      ? menuItemArray.filter(mi => mi.name === 'admin')
-      : menuItemArray.filter(mi => mi.name !== 'admin');
+      ? menuItemArray.filter(mi => mi.name.includes('admin'))
+      : menuItemArray.filter(mi => !mi.name.includes('admin'));
 
     if (isBottomMenuSection && !canDisplayRBACMenuItem && !loadingPermission) {
       menuItemArray[0].children = menuItemArray[0].children?.filter(
@@ -421,12 +450,13 @@ export const Root = ({ children }: PropsWithChildren<unknown>) => {
           const isOpen = openItems[menuItem.name] || false;
           return (
             <Fragment key={menuItem.name}>
-              {menuItem.children!.length === 0 && getMenuItem(menuItem)}
+              {menuItem.children!.length === 0 &&
+                getMenuItem(menuItem, false, getMenuText)}
               {menuItem.children!.length > 0 && (
                 <SidebarItem
                   key={menuItem.name}
                   icon={renderIcon(menuItem.icon ?? '')}
-                  text={menuItem.title}
+                  text={getMenuText(menuItem)}
                   onClick={() => handleClick(menuItem.name)}
                 >
                   {menuItem.children!.length > 0 && renderExpandIcon(isOpen)}
@@ -462,7 +492,11 @@ export const Root = ({ children }: PropsWithChildren<unknown>) => {
             {showLogo && <SidebarLogo />}
             {showSearch ? (
               <>
-                <SidebarGroup label="Search" icon={<SearchIcon />} to="/search">
+                <SidebarGroup
+                  label={searchT('sidebarSearchModal.title')}
+                  icon={<SearchIcon />}
+                  to="/search"
+                >
                   <SidebarSearchModal />
                 </SidebarGroup>
                 <SidebarDivider />
@@ -470,7 +504,7 @@ export const Root = ({ children }: PropsWithChildren<unknown>) => {
             ) : (
               <Box sx={{ height: '1.2rem' }} />
             )}
-            <SidebarGroup label="Menu" icon={<MuiMenuIcon />}>
+            <SidebarGroup label={t('sidebar.menu')} icon={<MuiMenuIcon />}>
               {/* Global nav, not org-specific */}
               {renderMenuItems(true, false)}
               {/* End global nav */}
@@ -495,8 +529,8 @@ export const Root = ({ children }: PropsWithChildren<unknown>) => {
             {showAdministration && (
               <>
                 <SidebarDivider />
-                <SidebarGroup label="Administration" icon={<AdminIcon />}>
-                  {renderMenuItems(false, true)}
+                <SidebarGroup label="Administration">
+                  {renderMenuItems(true, true)}
                 </SidebarGroup>
               </>
             )}
@@ -504,7 +538,7 @@ export const Root = ({ children }: PropsWithChildren<unknown>) => {
               <>
                 <SidebarDivider />
                 <SidebarGroup
-                  label="Settings"
+                  label={userSettingsT('sidebarTitle')}
                   to="/settings"
                   icon={<AccountCircleOutlinedIcon />}
                 >

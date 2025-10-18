@@ -25,7 +25,9 @@ metadata:
       url: https://github.com/backstage/community-plugins/tree/main/workspaces/topology/plugins/topology
 
 spec:
-  support: production
+  support:
+    provider: Red Hat
+    level: generally-available
   lifecycle: active
   author: Red Hat
   publisher: Red Hat
@@ -58,4 +60,5 @@ spec:
 
   packages:
     - backstage-community-plugin-topology
+    - backstage-plugin-kubernetes
     - backstage-plugin-kubernetes-backend

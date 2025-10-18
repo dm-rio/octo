@@ -5,6 +5,8 @@ metadata:
   name: packages
 spec:
   targets:
+    - ./aws-amazon-ecs-plugin-for-backstage-backend.yaml
+    - ./aws-amazon-ecs-plugin-for-backstage.yaml
     - ./backstage-plugin-scaffolder-backend-module-github.yaml
     - ./backstage-plugin-catalog-backend-module-github.yaml
     - ./backstage-plugin-catalog-backend-module-github-org.yaml
@@ -27,9 +29,11 @@ spec:
     - ./backstage-plugin-scaffolder-backend-module-azure.yaml
     - ./backstage-community-plugin-azure-devops-backend.yaml
     - ./backstage-community-plugin-azure-devops.yaml
-    - ./parfuemerie-douglas-scaffolder-backend-module-azure-repositorie.yaml
+    - ./parfuemerie-douglas-scaffolder-backend-module-azure-repositories.yaml
     - ./backstage-community-plugin-jenkins-backend.yaml
     - ./backstage-community-plugin-jenkins.yaml
+    - ./backstage-community-plugin-mcp-chat.yaml
+    - ./backstage-community-plugin-mcp-chat-backend.yaml
     - ./backstage-plugin-notifications.yaml
     - ./backstage-plugin-notifications-backend.yaml
     - ./backstage-plugin-notifications-backend-module-email.yaml
@@ -37,6 +41,7 @@ spec:
     - ./backstage-plugin-signals.yaml
     - ./backstage-community-plugin-sonarqube-backend.yaml
     - ./backstage-community-plugin-sonarqube.yaml
+    # https://issues.redhat.com/browse/RHDHPLAN-265 - OCM is deprecated in 1.8; will be removed in 1.10
     - ./backstage-community-plugin-ocm-backend.yaml
     - ./backstage-community-plugin-ocm.yaml
     - ./red-hat-developer-hub-backstage-plugin-bulk-import-backend.yaml
@@ -77,6 +82,8 @@ spec:
     - ./backstage-community-plugin-lighthouse.yaml
     - ./backstage-community-plugin-tech-radar.yaml
     - ./backstage-community-plugin-tech-radar-backend.yaml
+    - ./backstage-community-plugin-todo-backend.yaml
+    - ./backstage-community-plugin-todo.yaml
     - ./backstage-community-plugin-analytics-provider-segment.yaml
     - ./backstage-community-plugin-catalog-backend-module-scaffolder-re.yaml
     - ./backstage-plugin-catalog-backend-module-msgraph.yaml
@@ -88,6 +95,7 @@ spec:
     - ./redhat-backstage-plugin-orchestrator-backend.yaml
     - ./redhat-backstage-plugin-orchestrator.yaml
     - ./redhat-backstage-plugin-scaffolder-backend-module-orchestrator.yaml
+    - ./redhat-backstage-plugin-orchestrator-form-widgets.yaml
     - ./dynatrace-backstage-plugin-dql.yaml
     - ./dynatrace-backstage-plugin-dql-backend.yaml
     - ./rhdh-backstage-plugin-adoption-insights.yaml
@@ -97,3 +105,8 @@ spec:
     - ./red-hat-developer-hub-backstage-plugin-lightspeed.yaml
     - ./red-hat-developer-hub-backstage-plugin-lightspeed-backend.yaml
     - ./apic-backstage-plugin.yaml
+    - ./backstage-plugin-mcp-actions-backend.yaml
+    - ./red-hat-developer-hub-backstage-plugin-software-catalog-mcp-tool.yaml
+    - ./red-hat-developer-hub-backstage-plugin-techdocs-mcp-tool.yaml
+    - ./backstage-plugin-catalog-backend-module-model-catalog.yaml
+    - ./backstage-plugin-catalog-techdoc-url-reader-backend.yaml

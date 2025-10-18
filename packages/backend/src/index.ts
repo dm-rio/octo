@@ -17,6 +17,7 @@ import {
   pluginIDProviderService,
   rbacDynamicPluginsProvider,
 } from './modules';
+import { userSettingsBackend } from './modules/userSettings';
 import authProvidersModule from './modules/authProvidersModule.ts';
 import { getDynamicUserEntityProvider } from './modules/dynamicUsersModule.ts';
 
@@ -161,8 +162,12 @@ if (process.env.ENABLE_AUTH_PROVIDER_MODULE_OVERRIDE !== 'true') {
   staticLogger.info(`Default authentication provider module disabled`);
 }
 
-backend.add(import('@internal/plugin-dynamic-plugins-info-backend'));
 backend.add(import('@internal/plugin-scalprum-backend'));
+backend.add(
+  import('@red-hat-developer-hub/backstage-plugin-translations-backend'),
+);
 backend.add(import('@internal/plugin-licensed-users-info-backend'));
+
+backend.add(userSettingsBackend);
 
 backend.start();
