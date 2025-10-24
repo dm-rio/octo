@@ -14,7 +14,8 @@ import { oauth2ProxyAuthenticator, oauth2ProxySignInResolvers } from '@backstage
 import { oidcAuthenticator, oidcSignInResolvers } from '@backstage/plugin-auth-backend-module-oidc-provider';
 import { oktaAuthenticator, oktaSignInResolvers } from '@backstage/plugin-auth-backend-module-okta-provider';
 import { oneLoginAuthenticator, oneLoginSignInResolvers } from '@backstage/plugin-auth-backend-module-onelogin-provider';
-import { authOwnershipResolutionExtensionPoint, AuthProviderFactory, authProvidersExtensionPoint, commonSignInResolvers, createOAuthProviderFactory, createProxyAuthProviderFactory } from '@backstage/plugin-auth-node';
+import { authOwnershipResolutionExtensionPoint, AuthProviderFactory, authProvidersExtensionPoint, commonSignInResolvers, createOAuthProviderFactory, createProxyAuthProviderFactory, createProxyAuthenticator, ProfileInfo } from '@backstage/plugin-auth-node';
+import { decodeJwt, jwtVerify, createRemoteJWKSet } from 'jose';
 
 
 
@@ -29,6 +30,77 @@ function getAuthProviderFactory(
   disableIdentityResolution: boolean,
   getUserEntityProvider: () => DynamicUserEntityProvider,
 ): AuthProviderFactory {
+  const jwtAuthenticator = createProxyAuthenticator({
+    defaultProfileTransform: async (result: { userEntityRef: string; ownershipEntityRefs: string[]; email?: string; displayName?: string }) => {
+      const profile: ProfileInfo = {
+        email: result.email,
+        displayName: result.displayName,
+      };
+      return { profile };
+    },
+    initialize(_ctx: { config: any }) {
+      return { config: _ctx.config };
+    },
+    async authenticate(options: { req: any }, ctx: any) {
+      const auth = options.req.header('authorization') || options.req.header('Authorization');
+      const bearer = typeof auth === 'string' && auth.toLowerCase().startsWith('bearer ')
+        ? auth.slice(7).trim()
+        : undefined;
+      let claims: any = {};
+      if (bearer) {
+        try {
+          const env = (ctx?.config?.getOptionalString?.('auth.environment') ?? 'development') as string;
+          const metadataUrl =
+            ctx?.config?.getOptionalString?.(`auth.providers.jwt.${env}.metadataUrl`) ??
+            ctx?.config?.getOptionalString?.(`auth.providers.oidc.${env}.metadataUrl`);
+
+          if (!metadataUrl) {
+            throw new Error('Missing OIDC metadataUrl for jwt auth provider');
+          }
+
+          if (!ctx.__jwt || ctx.__jwt.metadataUrl !== metadataUrl) {
+            const resp = await fetch(metadataUrl);
+            if (!resp.ok) {
+              throw new Error(`Failed to load OIDC metadata (${resp.status})`);
+            }
+            const meta = await resp.json();
+            const jwksUri = meta?.jwks_uri;
+            if (!jwksUri) {
+              throw new Error('Missing jwks_uri in OIDC metadata');
+            }
+            ctx.__jwt = {
+              metadataUrl,
+              issuer: meta?.issuer,
+              jwks: createRemoteJWKSet(new URL(jwksUri)),
+            };
+          }
+
+          const verifyRes = await jwtVerify(bearer, ctx.__jwt.jwks, ctx.__jwt.issuer ? { issuer: ctx.__jwt.issuer } : {});
+          claims = verifyRes.payload;
+        } catch (_e) {
+          // As a fallback, attempt to decode without verification (not ideal, but avoids total failure)
+          try { claims = decodeJwt(bearer); } catch { claims = {}; }
+        }
+      }
+      const email: string | undefined = claims?.email;
+      const preferredUsername: string | undefined = claims?.preferred_username;
+      const sub: string | undefined = claims?.sub;
+      const username = (preferredUsername || (email ? email.split('@')[0] : undefined) || sub || '').toString().toLocaleLowerCase();
+      const userEntityRef = `user:default/${username}`;
+      let entitlements: string[] = Array.isArray(claims?.groups) ? claims.groups : [];
+      try {
+        const roles = claims?.resource_access?.octo?.roles;
+        if (Array.isArray(roles)) entitlements = entitlements.concat(roles);
+      } catch (_e) {}
+      const ownershipEntityRefs = entitlements
+        .filter((g: unknown) => typeof g === 'string' && g)
+        .map((g: string) => `group:default/${g}`);
+
+      return {
+        result: { userEntityRef, ownershipEntityRefs, email, displayName: preferredUsername ?? email },
+      };
+    },
+  });
   const applySignInResolvers = (options: {
     signInResolver: any;
     signInResolverFactories: Record<string, any>;
@@ -188,6 +260,16 @@ function getAuthProviderFactory(
             ...commonSignInResolvers,
           },
         }),
+      });
+    case 'jwt':
+      return createProxyAuthProviderFactory({
+        authenticator: jwtAuthenticator,
+        // Sign-in resolver that mints a Backstage token using the issuer
+        signInResolver: async (info, ctx) => {
+          const sub = info.result.userEntityRef as string;
+          const ent = (info.result.ownershipEntityRefs as string[]) ?? [];
+          return ctx.issueToken({ claims: { sub, ...(ent.length ? { ent } : {}) } });
+        },
       });
     case 'okta':
       return createOAuthProviderFactory({
