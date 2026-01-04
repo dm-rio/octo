@@ -158,8 +158,6 @@ global:
                 dynamicRoutes:
                   - path: /admin/rbac
                     importName: RbacPage
-      # - package: ./dynamic-plugins/dist/backstage-community-plugin-ocm-backend-dynamic
-      #   disabled: false
       # - package: ./dynamic-plugins/dist/backstage-community-plugin-catalog-backend-module-keycloak-dynamic
       #   disabled: false
       #   pluginConfig:
@@ -179,8 +177,6 @@ global:
       #                 seconds: 15
       #               timeout:
       #                 minutes: 1
-      # - package: ./dynamic-plugins/dist/backstage-community-plugin-ocm
-      #   disabled: false
       #   pluginConfig:
       #     dynamicPlugins:
       #       frontend:
@@ -426,7 +422,7 @@ upstream:
     image:
       registry: quay.io
       repository: fedora/postgresql-15
-      tag: latest
+      tag: latest@sha256:dfbfeb1eef63c9969d7e86efbee1f238a55b3fb18ab3602359202a134626c840
     auth:
       secretKeys:
         adminPasswordKey: postgres-password

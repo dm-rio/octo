@@ -47,7 +47,7 @@
     "typescript": "5.9.3"
   },
   "resolutions": {
-    "@types/react": "18.3.23",
+    "@types/react": "18.3.27",
     "@types/react-dom": "18.3.7"
   },
   "files": [
@@ -65,7 +65,7 @@
   ],
   "author": "Red Hat",
   "homepage": "https://red.ht/rhdh",
-  "bugs": "https://issues.redhat.com/browse/RHIDP",
+  "bugs": "https://github.com/immobiliare/backstage-plugin-gitlab/issues",
   "keywords": [
     "support:tech-preview",
     "lifecycle:active"

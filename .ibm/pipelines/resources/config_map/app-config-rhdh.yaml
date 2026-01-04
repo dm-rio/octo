@@ -21,11 +21,19 @@ app:
         headerColor1: "rgb(216, 98, 208)"
         headerColor2: "rgb(216, 164, 98)"
         navigationIndicatorColor: "rgb(98, 216, 105)"
+        palette:
+          rhdh:
+            general:
+              sidebarItemSelectedBackgroundColor: "#f0f0f0"
       dark:
         primaryColor: "#DC6ED9"
         headerColor1: "rgb(190, 122, 45)"
         headerColor2: "rgb(45, 190, 50)"
         navigationIndicatorColor: "rgb(45, 113, 190)"
+        palette:
+          rhdh:
+            general:
+              sidebarItemSelectedBackgroundColor: "#333333"
 backend:
   baseUrl: ${RHDH_BASE_URL}
   cors:
@@ -72,6 +80,7 @@ integrations:
       apiBaseUrl: temp
       username: temp
       password: temp
+  #   Using Github GH_USER_ID account
   gitlab:
     - host: gitlab.com
       token: ${GITLAB_TOKEN}
@@ -167,7 +176,8 @@ catalog:
         clientId: ${KEYCLOAK_AUTH_CLIENTID}
         clientSecret: ${KEYCLOAK_AUTH_CLIENT_SECRET}
         schedule:
-          frequency: { minutes: 1 }
+          # Let's perform a single execution per test run
+          frequency: { hours: 24 }
           timeout: { minutes: 1 }
       badConfigForMetrics:
         baseUrl: ${KEYCLOAK_AUTH_BASE_URL}/auth
@@ -178,26 +188,29 @@ catalog:
         clientSecret: ABC
         schedule:
           # Let's perform a single execution to trigger the metrics fetch failure counter; next fetch will never happen again.
-          frequency: { minutes: 10000 }
+          frequency: { hours: 24 }
           timeout: { minutes: 1 }
           initialDelay: { seconds: 15 }
     github:
       providerId:
         organization: "${GITHUB_ORG}"
         schedule:
-          frequency: { minutes: 30 }
+          # Let's perform a single execution
+          frequency: { hours: 24 }
           timeout: { minutes: 30 }
     githubOrg:
       id: production
       githubUrl: "${GITHUB_URL}"
       orgs: ["${GITHUB_ORG}", "${GITHUB_ORG_2}"]
+    #   Using Github GH_USER_ID account
     gitlab:
       my-test-provider:
-        group: rhdhqetest
+        group: rhdh-qe-test
         host: gitlab.com
         schedule:
+          # Let's perform a single execution per test run
           frequency:
-            minutes: 1
+            hours: 24
           initialDelay:
             seconds: 15
           timeout:

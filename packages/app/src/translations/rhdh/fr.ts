@@ -24,7 +24,8 @@ export default createTranslationMessages({
   messages: {
     // Default main menu items from consts.ts
     'menuItem.home': 'Accueil',
-    'menuItem.myGroup': 'Mon Groupe',
+    'menuItem.myGroup_one': 'Mon Groupe',
+    'menuItem.myGroup_other': 'Mes Groupes',
     'menuItem.catalog': 'Catalogue',
     'menuItem.apis': 'APIs',
     'menuItem.learningPaths': "Parcours d'apprentissage",
@@ -42,6 +43,23 @@ export default createTranslationMessages({
     'menuItem.techRadar': 'Radar technologique',
     'menuItem.orchestrator': 'Orchestrateur',
     'menuItem.adoptionInsights': "Insights d'adoption",
+
+    'catalog.entityPage.overview.title': 'Aperçu',
+    'catalog.entityPage.topology.title': 'Topologie',
+    'catalog.entityPage.issues.title': 'Problèmes',
+    'catalog.entityPage.pullRequests.title': 'Pull/Merge Requests',
+    'catalog.entityPage.ci.title': 'CI',
+    'catalog.entityPage.cd.title': 'CD',
+    'catalog.entityPage.kubernetes.title': 'Kubernetes',
+    'catalog.entityPage.imageRegistry.title': "Registre d'Images",
+    'catalog.entityPage.monitoring.title': 'Surveillance',
+    'catalog.entityPage.lighthouse.title': 'Lighthouse',
+    'catalog.entityPage.api.title': 'API',
+    'catalog.entityPage.dependencies.title': 'Dépendances',
+    'catalog.entityPage.docs.title': 'Documentation',
+    'catalog.entityPage.definition.title': 'Définition',
+    'catalog.entityPage.diagram.title': 'Diagramme du Système',
+    'catalog.entityPage.workflows.title': 'Flux de travail',
 
     'sidebar.menu': 'Menu',
     'sidebar.home': 'Accueil',
@@ -89,7 +107,6 @@ export default createTranslationMessages({
     'app.learningPaths.title': "Parcours d'apprentissage",
     'app.learningPaths.error.title': 'Impossible de récupérer les données.',
     'app.learningPaths.error.unknownError': 'Erreur inconnue',
-    'app.entityPage.diagram.title': 'Diagramme système',
     'app.userSettings.infoCard.title': 'Métadonnées RHDH',
     'app.userSettings.infoCard.metadataCopied':
       'Métadonnées copiées dans le presse-papiers',

@@ -67,7 +67,7 @@ jobs:
 
       - name: Download Skip Status Artifact
         id: download-skip-status
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ${{ env.SKIP_ARTIFACT_NAME }}
           path: ./rhdh-skip-artifacts
@@ -89,7 +89,7 @@ jobs:
 
       - name: Download Image Artifacts
         if: ${{ steps.check-skip.outputs.is_skipped != 'true' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ./rhdh-podman-artifacts
@@ -132,16 +132,27 @@ jobs:
           username: ${{ secrets.QUAY_USERNAME }}
           password: ${{ secrets.QUAY_TOKEN }}
 
-      - name: Log skip status
+      - name: Comment skip status
         if: ${{ steps.check-skip.outputs.is_skipped == 'true' }}
-        run: |
-          echo "🚫 Image Push Skipped"
-          echo "The container image push was skipped because the build was skipped"
-          echo "(either due to [skip-build] tag or no relevant changes with existing image)"
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          PR_NUMBER: ${{ steps.get-pr-info.outputs.pr_number }}
+        with:
+          script: |
+            const prNumber = process.env.PR_NUMBER;
+
+            const body = '🚫 Image Push Skipped.\n\nThe container image push was skipped because the build was skipped (either due to [skip-build] tag or no relevant changes with existing image)\n\n/test e2e-ocp-helm\n';
+
+            github.rest.issues.createComment({
+              issue_number: parseInt(prNumber),
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            })
 
       - name: Comment the image pull link
         if: ${{ steps.check-skip.outputs.is_skipped != 'true' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           PUSHED_TAGS: ${{ steps.prepare.outputs.tags }}
           PR_NUMBER: ${{ steps.get-pr-info.outputs.pr_number }}
@@ -173,7 +184,7 @@ jobs:
               return `* [\`${fullTag}\`](https://${fullTag})`;
             }).join('\n');
             
-            const body = `The image is available at:\n\n${tagLinks}\n\n`;
+            const body = `The image is available at:\n\n${tagLinks}\n\n/test e2e-ocp-helm\n`;
             
             console.log(`Creating comment for PR ${prNumber} with body:\n ${body}`);
 

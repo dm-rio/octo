@@ -10,8 +10,8 @@ yarn-error.log*
 lerna-debug.log*
 
 # Coverage directory generated when running tests with coverage
-coverage
-
+**/coverage
+**/.coverage
 # Dependencies
 node_modules/
 
@@ -68,8 +68,11 @@ dynamic-plugins-root/*
 /.rbac/
 /.atemp/
 
-# Local Cursor rules context
+# Local AI Assistant rules
 .cursor/rules/*.local.mdc
+.rulesync/**/*.local.md
+.claude/**/*.local.md
+.claude/settings.local.json
 /app-config.ucare.yaml
 
 # CI/Pipeline local overrides
@@ -77,3 +80,8 @@ dynamic-plugins-root/*
 .ibm/pipelines/artifact_dir/*
 .ibm/pipelines/env_override.local.sh
 /dev-proxy.js
+
+# Python Caches
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/

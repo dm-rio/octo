@@ -24,7 +24,8 @@ export default createTranslationMessages({
   messages: {
     // Default main menu items from consts.ts
     'menuItem.home': 'Inicio',
-    'menuItem.myGroup': 'Mi Grupo',
+    'menuItem.myGroup_one': 'Mi Grupo',
+    'menuItem.myGroup_other': 'Mis Grupos',
     'menuItem.catalog': 'Catálogo',
     'menuItem.apis': 'APIs',
     'menuItem.learningPaths': 'Rutas de Aprendizaje',
@@ -42,6 +43,23 @@ export default createTranslationMessages({
     'menuItem.techRadar': 'Radar tecnológico',
     'menuItem.orchestrator': 'Orquestador',
     'menuItem.adoptionInsights': 'Insights de adopción',
+
+    'catalog.entityPage.overview.title': 'Resumen',
+    'catalog.entityPage.topology.title': 'Topología',
+    'catalog.entityPage.issues.title': 'Problemas',
+    'catalog.entityPage.pullRequests.title': 'Pull/Merge Requests',
+    'catalog.entityPage.ci.title': 'CI',
+    'catalog.entityPage.cd.title': 'CD',
+    'catalog.entityPage.kubernetes.title': 'Kubernetes',
+    'catalog.entityPage.imageRegistry.title': 'Registro de Imágenes',
+    'catalog.entityPage.monitoring.title': 'Monitoreo',
+    'catalog.entityPage.lighthouse.title': 'Lighthouse',
+    'catalog.entityPage.api.title': 'API',
+    'catalog.entityPage.dependencies.title': 'Dependencias',
+    'catalog.entityPage.docs.title': 'Documentación',
+    'catalog.entityPage.definition.title': 'Definición',
+    'catalog.entityPage.diagram.title': 'Diagrama del Sistema',
+    'catalog.entityPage.workflows.title': 'Flujos de trabajo',
 
     'sidebar.menu': 'Menú',
     'sidebar.home': 'Inicio',
@@ -89,7 +107,6 @@ export default createTranslationMessages({
     'app.learningPaths.title': 'Rutas de aprendizaje',
     'app.learningPaths.error.title': 'No se pudieron obtener los datos.',
     'app.learningPaths.error.unknownError': 'Error desconocido',
-    'app.entityPage.diagram.title': 'Diagrama del sistema',
     'app.userSettings.infoCard.title': 'Metadatos RHDH',
     'app.userSettings.infoCard.metadataCopied':
       'Metadatos copiados al portapapeles',

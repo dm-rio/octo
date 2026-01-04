@@ -400,7 +400,7 @@ test.describe.serial("Test RBAC", () => {
       let attempts = 0;
       do {
         await page.waitForTimeout(500);
-        nextButton2 = page.locator('[data-testid="nextButton-2"]');
+        nextButton2 = page.getByTestId("nextButton-2");
         matchNextButton2 = await nextButton2.all();
         attempts++;
         // eslint-disable-next-line playwright/no-conditional-in-test
@@ -501,39 +501,36 @@ test.describe.serial("Test RBAC", () => {
     });
 
     // TODO: https://issues.redhat.com/browse/RHDHBUGS-2100
-    test.fixme(
-      "Test that roles and policies from GET request are what expected",
-      async () => {
-        const rbacApi = await RhdhRbacApi.build(apiToken);
+    test.fixme("Test that roles and policies from GET request are what expected", async () => {
+      const rbacApi = await RhdhRbacApi.build(apiToken);
 
-        const rolesResponse = await rbacApi.getRoles();
+      const rolesResponse = await rbacApi.getRoles();
 
-        const policiesResponse = await rbacApi.getPolicies();
+      const policiesResponse = await rbacApi.getPolicies();
 
-        // eslint-disable-next-line playwright/no-conditional-in-test
-        if (!rolesResponse.ok()) {
-          throw Error(
-            `RBAC rolesResponse API call failed with status code ${rolesResponse.status()}`,
-          );
-        }
-
-        // eslint-disable-next-line playwright/no-conditional-in-test
-        if (!policiesResponse.ok()) {
-          throw Error(
-            `RBAC policiesResponse API call failed with status code ${policiesResponse.status()}`,
-          );
-        }
-
-        await Response.checkResponse(
-          rolesResponse,
-          RbacConstants.getExpectedRoles(),
+      // eslint-disable-next-line playwright/no-conditional-in-test
+      if (!rolesResponse.ok()) {
+        throw Error(
+          `RBAC rolesResponse API call failed with status code ${rolesResponse.status()}`,
         );
-        await Response.checkResponse(
-          policiesResponse,
-          RbacConstants.getExpectedPolicies(),
+      }
+
+      // eslint-disable-next-line playwright/no-conditional-in-test
+      if (!policiesResponse.ok()) {
+        throw Error(
+          `RBAC policiesResponse API call failed with status code ${policiesResponse.status()}`,
         );
-      },
-    );
+      }
+
+      await Response.checkResponse(
+        rolesResponse,
+        RbacConstants.getExpectedRoles(),
+      );
+      await Response.checkResponse(
+        policiesResponse,
+        RbacConstants.getExpectedPolicies(),
+      );
+    });
 
     test("Create new role for rhdh-qe, change its name, and deny it from reading catalog entities", async () => {
       const rbacApi = await RhdhRbacApi.build(apiToken);
@@ -784,6 +781,63 @@ test.describe.serial("Test RBAC", () => {
       await uiHelper.openSidebarButton("Administration");
       const dropdownMenuLocator = page.locator(`text="RBAC"`);
       await expect(dropdownMenuLocator).toBeHidden();
+    });
+  });
+
+  test.describe
+    .serial("Test RBAC plugin: policyDecisionPrecedence: conditional — prioritize conditional before basic (default behavior)", () => {
+    test("should allow read as defined in basic policy and conditional", async ({
+      page,
+    }) => {
+      const common = new Common(page);
+      const uiHelper = new UIhelper(page);
+
+      // Should allow read for user7: has static allow read via CSV and is also permitted via conditional policy
+      await common.loginAsKeycloakUser(
+        process.env.QE_USER7_ID,
+        process.env.QE_USER7_PASS,
+      );
+      await uiHelper.openSidebar("Catalog");
+      await uiHelper.selectMuiBox("Kind", "Component");
+      await uiHelper.searchInputPlaceholder("mock-component");
+      await expect(
+        page.getByRole("link", { name: "mock-component-qe-7" }),
+      ).toBeVisible();
+    });
+
+    test("should allow read as defined in conditional policy, basic policy should be disregarded", async ({
+      page,
+    }) => {
+      const common = new Common(page);
+      const uiHelper = new UIhelper(page);
+
+      // Should allow read for user8: conditional policy takes precedence over static deny read via CSV
+      await common.loginAsKeycloakUser(
+        process.env.QE_USER8_ID,
+        process.env.QE_USER8_PASS,
+      );
+      await uiHelper.openSidebar("Catalog");
+      await uiHelper.selectMuiBox("Kind", "Component");
+      await uiHelper.searchInputPlaceholder("mock-component");
+      await expect(
+        page.getByRole("link", { name: "mock-component-qe-8" }),
+      ).toBeVisible();
+    });
+
+    test("should deny read as defined in conditional policy, basic policy should be disregarded", async ({
+      page,
+    }) => {
+      const common = new Common(page);
+      const uiHelper = new UIhelper(page);
+
+      // Should allow read for user9: conditional deny policy takes precedence over allow read via basic
+      await common.loginAsKeycloakUser(
+        process.env.QE_USER9_ID,
+        process.env.QE_USER9_PASS,
+      );
+      await uiHelper.openSidebar("Catalog");
+      await uiHelper.selectMuiBox("Kind", "Component");
+      await uiHelper.verifyTableIsEmpty();
     });
   });
 });

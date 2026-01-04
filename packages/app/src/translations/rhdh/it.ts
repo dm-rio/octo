@@ -24,7 +24,8 @@ export default createTranslationMessages({
   messages: {
     // Default main menu items from consts.ts
     'menuItem.home': 'Home',
-    'menuItem.myGroup': 'Il Mio Gruppo',
+    'menuItem.myGroup_one': 'Il Mio Gruppo',
+    'menuItem.myGroup_other': 'I Miei Gruppi',
     'menuItem.catalog': 'Catalogo',
     'menuItem.apis': 'API',
     'menuItem.learningPaths': 'Percorsi di Apprendimento',
@@ -42,6 +43,23 @@ export default createTranslationMessages({
     'menuItem.techRadar': 'Radar tecnologico',
     'menuItem.orchestrator': 'Orchestratore',
     'menuItem.adoptionInsights': 'Insights di adozione',
+
+    'catalog.entityPage.overview.title': 'Panoramica',
+    'catalog.entityPage.topology.title': 'Topologia',
+    'catalog.entityPage.issues.title': 'Problemi',
+    'catalog.entityPage.pullRequests.title': 'Pull/Merge Requests',
+    'catalog.entityPage.ci.title': 'CI',
+    'catalog.entityPage.cd.title': 'CD',
+    'catalog.entityPage.kubernetes.title': 'Kubernetes',
+    'catalog.entityPage.imageRegistry.title': 'Registro Immagini',
+    'catalog.entityPage.monitoring.title': 'Monitoraggio',
+    'catalog.entityPage.lighthouse.title': 'Lighthouse',
+    'catalog.entityPage.api.title': 'API',
+    'catalog.entityPage.dependencies.title': 'Dipendenze',
+    'catalog.entityPage.docs.title': 'Documentazione',
+    'catalog.entityPage.definition.title': 'Definizione',
+    'catalog.entityPage.diagram.title': 'Diagramma del Sistema',
+    'catalog.entityPage.workflows.title': 'Flussi di lavoro',
 
     'sidebar.menu': 'Menu',
     'sidebar.home': 'Home',
@@ -88,7 +106,6 @@ export default createTranslationMessages({
     'app.learningPaths.title': 'Percorsi di apprendimento',
     'app.learningPaths.error.title': 'Impossibile recuperare i dati.',
     'app.learningPaths.error.unknownError': 'Errore sconosciuto',
-    'app.entityPage.diagram.title': 'Diagramma di sistema',
     'app.userSettings.infoCard.title': 'Metadati RHDH',
     'app.userSettings.infoCard.metadataCopied':
       'Metadati copiati negli appunti',

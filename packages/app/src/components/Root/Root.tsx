@@ -16,6 +16,7 @@ import {
   SidebarPage,
   SidebarScrollWrapper,
   SidebarSpace,
+  useSidebarOpenState,
 } from '@backstage/core-components';
 import { configApiRef, useApi } from '@backstage/core-plugin-api';
 import { useTranslationRef } from '@backstage/core-plugin-api/alpha';
@@ -45,6 +46,7 @@ import DynamicRootContext, {
 import { useLanguagePreference } from '../../hooks/useLanguagePreference';
 import { useTranslation } from '../../hooks/useTranslation';
 import { ApplicationHeaders } from './ApplicationHeaders';
+import { CustomSidebarItem } from './CustomSidebarItem';
 import { MenuIcon } from './MenuIcon';
 import { SidebarLogo } from './SidebarLogo';
 
@@ -110,6 +112,7 @@ const PageWithoutFixHeight = styled(Box, {
 interface SidebarLayoutProps {
   aboveSidebarHeaderHeight?: number;
   aboveMainContentHeaderHeight?: number;
+  isSidebarOpen?: boolean;
 }
 
 const SidebarLayout = styled(Box, {
@@ -117,11 +120,13 @@ const SidebarLayout = styled(Box, {
   slot: 'sidebarLayout',
   shouldForwardProp: prop =>
     prop !== 'aboveSidebarHeaderHeight' &&
-    prop !== 'aboveMainContentHeaderHeight',
+    prop !== 'aboveMainContentHeaderHeight' &&
+    prop !== 'isSidebarOpen',
 })<SidebarLayoutProps>(
   ({
     aboveSidebarHeaderHeight,
     aboveMainContentHeaderHeight,
+    isSidebarOpen,
     theme,
   }: SidebarLayoutProps & {
     theme?: Theme;
@@ -138,6 +143,7 @@ const SidebarLayout = styled(Box, {
       flexDirection: 'column',
       height: 'unset',
       flexGrow: 1,
+      marginLeft: '27px',
       // Here we override the theme so that the Backstage default page suspense
       // takes up the whole height of the page instead of 100vh. The difference
       // lies in the height of the global header above the sidebar.
@@ -155,9 +161,9 @@ const SidebarLayout = styled(Box, {
       flexGrow: 1,
     },
 
-    // When quickstart drawer is open, adjust margin
-    '.quickstart-drawer-open &': {
-      '& main': {
+    // When quickstart drawer is open, adjust the content size
+    'body.quickstart-drawer-open #rhdh-sidebar-layout&': {
+      '> div > main': {
         marginRight: `calc(var(--quickstart-drawer-width, 500px) + ${(theme as ThemeConfig).palette?.rhdh?.general.pageInset})`,
         transition: 'margin-right 0.3s ease',
       },
@@ -168,9 +174,59 @@ const SidebarLayout = styled(Box, {
       // We need to compensate for the above-sidebar position of the global header
       // as it takes up a fixed height at the top of the page.
       top: `max(0px, ${aboveSidebarHeaderHeight ?? 0}px)`,
+      width: isSidebarOpen ? '250px !important' : 'auto',
     },
   }),
 );
+
+const SidebarScrollableContent = styled(Box)(({ theme }) => ({
+  flex: 1,
+  overflow: 'auto',
+  minHeight: 0,
+  position: 'relative',
+
+  // Custom scrollbar styling - hidden by default, visible on hover
+  '&::-webkit-scrollbar': {
+    width: '6px',
+    backgroundColor: 'transparent',
+  },
+  '&::-webkit-scrollbar-track': {
+    background: 'transparent',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: 'transparent',
+    borderRadius: '3px',
+    transition: 'background-color 0.3s ease',
+  },
+  '&:hover::-webkit-scrollbar-thumb': {
+    background:
+      theme.palette.mode === 'dark'
+        ? theme.palette.grey[600]
+        : theme.palette.grey[400],
+    '&:hover': {
+      background:
+        theme.palette.mode === 'dark'
+          ? theme.palette.grey[500]
+          : theme.palette.grey[600],
+    },
+  },
+
+  // Firefox scrollbar to auto-hide it
+  scrollbarColor: 'transparent transparent',
+  '&:hover': {
+    scrollbarColor: `${
+      theme.palette.mode === 'dark'
+        ? theme.palette.grey[600]
+        : theme.palette.grey[400]
+    } transparent`,
+  },
+  scrollBehavior: 'smooth',
+}));
+
+const SidebarStickyBottom = styled(Box)(() => ({
+  flexShrink: 0,
+  marginTop: 'auto',
+}));
 
 const renderIcon = (iconName: string) => () => <MenuIcon icon={iconName} />;
 
@@ -180,7 +236,6 @@ const renderExpandIcon = (expand: boolean) => {
       fontSize="small"
       style={{
         display: 'flex',
-        marginLeft: 8,
       }}
     />
   ) : (
@@ -188,7 +243,6 @@ const renderExpandIcon = (expand: boolean) => {
       fontSize="small"
       style={{
         display: 'flex',
-        marginLeft: 8,
       }}
     />
   );
@@ -197,25 +251,24 @@ const renderExpandIcon = (expand: boolean) => {
 const getMenuItem = (
   menuItem: ResolvedMenuItem,
   isNestedMenuItem = false,
-  getMenuText: (item: ResolvedMenuItem) => string,
+  getMenuText: (item: ResolvedMenuItem, count?: number) => string,
 ) => {
   const menuItemStyle = {
     paddingLeft: isNestedMenuItem ? '2rem' : '',
   };
   const translatedText = getMenuText(menuItem);
+  const pluralTranslatedText = getMenuText(menuItem, 2);
   return menuItem.name === 'default.my-group' ? (
     <Box key={menuItem.name} sx={{ '& a': menuItemStyle }}>
       <MyGroupsSidebarItem
         key={menuItem.name}
         icon={renderIcon(menuItem.icon ?? '')}
-        // Plural localization will be address in
-        // https://issues.redhat.com/browse/RHDHBUGS-2077
         singularTitle={translatedText}
-        pluralTitle={`${translatedText}s`}
+        pluralTitle={pluralTranslatedText}
       />
     </Box>
   ) : (
-    <SidebarItem
+    <CustomSidebarItem
       key={menuItem.name}
       icon={renderIcon(menuItem.icon ?? '')}
       to={menuItem.to ?? ''}
@@ -250,6 +303,7 @@ const ExpandableMenuList: FC<ExpandableMenuListProps> = ({
 };
 
 export const Root = ({ children }: PropsWithChildren<{}>) => {
+  const { isOpen: isSidebarOpen } = useSidebarOpenState();
   const aboveSidebarHeaderRef = useRef<HTMLDivElement>(null);
   const [aboveSidebarHeaderHeight, setAboveSidebarHeaderHeight] = useState(0);
   const aboveMainContentHeaderRef = useRef<HTMLDivElement>(null);
@@ -315,9 +369,9 @@ export const Root = ({ children }: PropsWithChildren<{}>) => {
   useLanguagePreference();
   const { t } = useTranslation();
 
-  const getMenuText = (menuItem: ResolvedMenuItem) => {
+  const getMenuText = (menuItem: ResolvedMenuItem, count?: number) => {
     if (menuItem.titleKey) {
-      return t(menuItem.titleKey as any, {});
+      return t(menuItem.titleKey as any, { count: count ?? 1 } as any);
     }
     return menuItem.title;
   };
@@ -350,11 +404,11 @@ export const Root = ({ children }: PropsWithChildren<{}>) => {
           "& div[class*='BackstageSidebarItem-secondaryAction']": { width: 20 },
           a: {
             width: 'auto',
-            '@media (min-width: 600px)': { width: 160 },
+            '@media (min-width: 600px)': { width: '186px' },
           },
         }}
         renderItem={child => (
-          <SidebarItem
+          <CustomSidebarItem
             key={child.title}
             icon={() => null}
             text={getMenuText(child)}
@@ -396,7 +450,7 @@ export const Root = ({ children }: PropsWithChildren<{}>) => {
                 },
                 a: {
                   width: 'auto',
-                  '@media (min-width: 600px)': { width: 224 },
+                  '@media (min-width: 600px)': { width: '250px' },
                 },
               }}
             >
@@ -475,6 +529,7 @@ export const Root = ({ children }: PropsWithChildren<{}>) => {
         id="rhdh-sidebar-layout"
         aboveSidebarHeaderHeight={aboveSidebarHeaderHeight}
         aboveMainContentHeaderHeight={aboveMainContentHeaderHeight}
+        isSidebarOpen={isSidebarOpen}
       >
         <SidebarPage>
           <div
@@ -484,63 +539,73 @@ export const Root = ({ children }: PropsWithChildren<{}>) => {
             <ApplicationHeaders position="above-main-content" />
           </div>
           <Sidebar>
-            {showLogo && <SidebarLogo />}
-            {showSearch ? (
-              <>
-                <SidebarGroup
-                  label={searchT('sidebarSearchModal.title')}
-                  icon={<SearchIcon />}
-                  to="/search"
-                >
-                  <SidebarSearchModal />
+            <Box display="flex" flexDirection="column" height="100%">
+              <Box flexShrink={0}>
+                {showLogo && <SidebarLogo />}
+                {showSearch ? (
+                  <>
+                    <SidebarGroup
+                      label={searchT('sidebarSearchModal.title')}
+                      icon={<SearchIcon />}
+                      to="/search"
+                    >
+                      <SidebarSearchModal />
+                    </SidebarGroup>
+                    <SidebarDivider />
+                  </>
+                ) : (
+                  <Box sx={{ height: '1.2rem' }} />
+                )}
+              </Box>
+
+              <SidebarScrollableContent>
+                <SidebarGroup label={t('sidebar.menu')} icon={<MuiMenuIcon />}>
+                  {/* Global nav, not org-specific */}
+                  {renderMenuItems(true, false)}
+                  {/* End global nav */}
+                  <SidebarDivider />
+                  <SidebarScrollWrapper>
+                    {renderMenuItems(false, false)}
+                    {dynamicRoutes.map(({ scope, menuItem, path }) => {
+                      if (menuItem && 'Component' in menuItem) {
+                        return (
+                          <menuItem.Component
+                            {...(menuItem.config?.props || {})}
+                            key={`${scope}/${path}`}
+                            to={path}
+                          />
+                        );
+                      }
+                      return null;
+                    })}
+                  </SidebarScrollWrapper>
                 </SidebarGroup>
-                <SidebarDivider />
-              </>
-            ) : (
-              <Box sx={{ height: '1.2rem' }} />
-            )}
-            <SidebarGroup label={t('sidebar.menu')} icon={<MuiMenuIcon />}>
-              {/* Global nav, not org-specific */}
-              {renderMenuItems(true, false)}
-              {/* End global nav */}
-              <SidebarDivider />
-              <SidebarScrollWrapper>
-                {renderMenuItems(false, false)}
-                {dynamicRoutes.map(({ scope, menuItem, path }) => {
-                  if (menuItem && 'Component' in menuItem) {
-                    return (
-                      <menuItem.Component
-                        {...(menuItem.config?.props || {})}
-                        key={`${scope}/${path}`}
-                        to={path}
-                      />
-                    );
-                  }
-                  return null;
-                })}
-              </SidebarScrollWrapper>
-            </SidebarGroup>
-            <SidebarSpace />
-            {showAdministration && (
-              <>
-                <SidebarDivider />
-                <SidebarGroup label="Administration">
-                  {renderMenuItems(true, true)}
-                </SidebarGroup>
-              </>
-            )}
-            {showSettings && (
-              <>
-                <SidebarDivider />
-                <SidebarGroup
-                  label={userSettingsT('sidebarTitle')}
-                  to="/settings"
-                  icon={<AccountCircleOutlinedIcon />}
-                >
-                  <SidebarSettings icon={AccountCircleOutlinedIcon} />
-                </SidebarGroup>
-              </>
-            )}
+                <SidebarSpace />
+              </SidebarScrollableContent>
+
+              <SidebarStickyBottom>
+                {showAdministration && (
+                  <>
+                    <SidebarDivider />
+                    <SidebarGroup label="Administration">
+                      {renderMenuItems(true, true)}
+                    </SidebarGroup>
+                  </>
+                )}
+                {showSettings && (
+                  <>
+                    <SidebarDivider />
+                    <SidebarGroup
+                      label={userSettingsT('sidebarTitle')}
+                      to="/settings"
+                      icon={<AccountCircleOutlinedIcon />}
+                    >
+                      <SidebarSettings icon={AccountCircleOutlinedIcon} />
+                    </SidebarGroup>
+                  </>
+                )}
+              </SidebarStickyBottom>
+            </Box>
           </Sidebar>
           {children}
         </SidebarPage>

@@ -18,8 +18,9 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
     branches:
-    - main
-    - release-1.[0-9]+
+      - main
+      - release-1.9
+      - release-1.1[0-9]
 
 env:
   TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
@@ -45,7 +46,7 @@ jobs:
           app-id: ${{ secrets.RHDH_GITHUB_APP_ID }}
           private-key: ${{ secrets.RHDH_GITHUB_APP_PRIVATE_KEY }}
       - name: Checkout main branch for secure version of check-author action
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 1
           ref: main  # Always use main branch for security-critical action
@@ -58,6 +59,7 @@ jobs:
           organization: redhat-developer
           team: rhdh
           gh_token: ${{ steps.app-token.outputs.token }}
+          whitelisted_authors: '["openshift-cherrypick-robot"]'
 
   authorize:
     # The 'external' environment is configured with the maintainers team as required reviewers.
@@ -88,7 +90,7 @@ jobs:
     needs: authorize
     steps:
       - name: Checkout
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -131,7 +133,7 @@ jobs:
     needs: authorize
     steps:
       - name: Checkout
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -161,6 +163,10 @@ jobs:
         with:
           cache-prefix: ${{ runner.os }}-v${{ matrix.node-version }}
 
+      - name: Install Python dependencies
+        if: ${{ steps.check-image.outputs.is_skipped != 'true' }}
+        run: pip install -r python/requirements-dev.in -r python/requirements-build.in -r python/requirements.txt
+
       - name: Run prettier
         if: ${{ steps.check-image.outputs.is_skipped != 'true' }}
         run: yarn prettier:check --continue --affected
@@ -183,6 +189,10 @@ jobs:
       - name: Run tests
         if: ${{ steps.check-image.outputs.is_skipped != 'true' }}
         run: yarn run test --continue --affected
+
+      - name: Run Python tests
+        if: ${{ steps.check-image.outputs.is_skipped != 'true' }}
+        run: pytest docker/test_install-dynamic-plugins.py -v
 
       - name: Change directory to dynamic-plugins
         if: ${{ steps.check-image.outputs.is_skipped != 'true' }}

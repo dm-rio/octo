@@ -22,8 +22,9 @@ global:
                   organization: janus-qe
                   catalogPath: "/catalog-info.yaml"
                   schedule:
+                    # Let's perform a single execution per test run
                     frequency:
-                      minutes: 1
+                      hours: 24
                     timeout:
                       minutes: 1
                     initialDelay:
@@ -75,21 +76,6 @@ global:
                 plural: "routes"
             serviceLocatorMethod:
               type: multiTenant
-      # Enable OCM plugins.
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-ocm-backend-dynamic
-        disabled: false
-        pluginConfig:
-          catalog:
-            providers:
-              ocm:
-                default:
-                  name: testCluster # Can be any arbitrary name supported by kubernetes
-                  url: ${OCM_CLUSTER_URL}
-                  serviceAccountToken: ${OCM_CLUSTER_TOKEN}
-                  skipTLSVerify: true
-                  owner: janus-authors
-      - package: ./dynamic-plugins/dist/backstage-community-plugin-ocm
-        disabled: false
       # Enable Bulk import plugins.
       - package: ./dynamic-plugins/dist/red-hat-developer-hub-backstage-plugin-bulk-import-backend-dynamic
         disabled: false
@@ -118,6 +104,7 @@ global:
                 entityTabs:
                   - path: "/scorecard"
                     title: Scorecard
+                    titleKey: catalog.entityPage.scorecard.title
                     mountPoint: entity.page.scorecard
                 mountPoints:
                   - mountPoint: entity.page.scorecard/cards
@@ -141,6 +128,57 @@ global:
             baseUrl: "{jira-base-url}"
             token: "{jira-api-token}"
             product: datacenter
+      # Enable orchestrator plugins - Official release (Backstage 1.42.5)
+      - package: "oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/red-hat-developer-hub-backstage-plugin-orchestrator:bs_1.42.5__5.1.0!red-hat-developer-hub-backstage-plugin-orchestrator"
+        disabled: false
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              red-hat-developer-hub.backstage-plugin-orchestrator:
+                appIcons:
+                  - importName: OrchestratorIcon
+                    name: orchestratorIcon
+                dynamicRoutes:
+                  - importName: OrchestratorPage
+                    menuItem:
+                      icon: orchestratorIcon
+                      text: Orchestrator
+                      textKey: menuItem.orchestrator
+                    path: /orchestrator
+                entityTabs:
+                  - path: /workflows
+                    title: Workflows
+                    titleKey: catalog.entityPage.workflows.title
+                    mountPoint: entity.page.workflows
+                mountPoints:
+                  - mountPoint: entity.page.workflows/cards
+                    importName: OrchestratorCatalogTab
+                    config:
+                      layout:
+                        gridColumn: "1 / -1"
+                        if:
+                          anyOf:
+                            - IsOrchestratorCatalogTabAvailable
+      - package: "oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/red-hat-developer-hub-backstage-plugin-orchestrator-backend:bs_1.42.5__8.2.0!red-hat-developer-hub-backstage-plugin-orchestrator-backend"
+        disabled: false
+        pluginConfig:
+          orchestrator:
+            dataIndexService:
+              url: http://sonataflow-platform-data-index-service
+
+      - package: "oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/red-hat-developer-hub-backstage-plugin-scaffolder-backend-module-orchestrator:bs_1.42.5__1.1.0!red-hat-developer-hub-backstage-plugin-scaffolder-backend-module-orchestrator"
+        disabled: false
+        pluginConfig:
+          orchestrator:
+            dataIndexService:
+              url: http://sonataflow-platform-data-index-service
+
+      - package: "oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/red-hat-developer-hub-backstage-plugin-orchestrator-form-widgets:bs_1.42.5__1.1.0!red-hat-developer-hub-backstage-plugin-orchestrator-form-widgets"
+        disabled: false
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              red-hat-developer-hub.backstage-plugin-orchestrator-form-widgets: {}
 
 # -- Upstream Backstage [chart configuration](https://github.com/backstage/charts/blob/main/charts/backstage/values.yaml)
 # @default -- Use Openshift compatible settings
@@ -333,6 +371,31 @@ upstream:
               params:
                 claims:
                   - \$ownerRefs
+            ---
+            result: CONDITIONAL
+            roleEntityRef: 'role:default/owned_resource_reader'
+            pluginId: catalog
+            resourceType: catalog-entity
+            permissionMapping:
+              - read
+            conditions:
+              rule: IS_ENTITY_OWNER
+              resourceType: catalog-entity
+              params:
+                claims:
+                  - \$currentUser
+            ---
+            result: CONDITIONAL
+            roleEntityRef: 'role:default/conditional_denier'
+            pluginId: catalog
+            resourceType: catalog-entity
+            permissionMapping:
+              - read
+            conditions:
+              rule: HAS_LABEL
+              resourceType: catalog-entity
+              params:
+                label: test-label
             EOF
 
             ./install-dynamic-plugins.sh /dynamic-plugins-root
@@ -374,6 +437,7 @@ upstream:
       existingSecret: postgres-cred
 
 orchestrator:
+  plugins: [] # disable chart-based orchestrator plugins and define above for clarity (may need a new test config to cover helm chart plugins)
   enabled: true
   serverlessLogicOperator:
     enabled: true
@@ -406,7 +470,7 @@ orchestrator:
     externalDBPort: "5432"
 
     # -- Image for the init container used by the create-db job
-    initContainerImage: "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-16.3-1"
+    initContainerImage: "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi9-17.7-2547"
 
     # -- Image for the container used by the create-db job
-    createDBJobImage: "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-16.3-1"
+    createDBJobImage: "registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi9-17.7-2547"

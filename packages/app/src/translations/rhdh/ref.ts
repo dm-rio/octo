@@ -24,7 +24,8 @@ export const rhdhMessages = {
   menuItem: {
     // Default main menu items from consts.ts
     home: 'Home',
-    myGroup: 'My Group',
+    myGroup_one: 'My Group',
+    myGroup_other: 'My Groups',
     catalog: 'Catalog',
     apis: 'APIs',
     learningPaths: 'Learning Paths',
@@ -103,6 +104,58 @@ export const rhdhMessages = {
       },
     },
   },
+  catalog: {
+    entityPage: {
+      overview: {
+        title: 'Overview',
+      },
+      topology: {
+        title: 'Topology',
+      },
+      issues: {
+        title: 'Issues',
+      },
+      pullRequests: {
+        title: 'Pull/Merge Requests',
+      },
+      ci: {
+        title: 'CI',
+      },
+      cd: {
+        title: 'CD',
+      },
+      kubernetes: {
+        title: 'Kubernetes',
+      },
+      imageRegistry: {
+        title: 'Image Registry',
+      },
+      monitoring: {
+        title: 'Monitoring',
+      },
+      lighthouse: {
+        title: 'Lighthouse',
+      },
+      api: {
+        title: 'API',
+      },
+      dependencies: {
+        title: 'Dependencies',
+      },
+      docs: {
+        title: 'Docs',
+      },
+      definition: {
+        title: 'Definition',
+      },
+      diagram: {
+        title: 'System Diagram',
+      },
+      workflows: {
+        title: 'Workflows',
+      },
+    },
+  },
   app: {
     scaffolder: {
       title: 'Self-service',
@@ -125,11 +178,6 @@ export const rhdhMessages = {
       error: {
         title: 'Could not fetch data.',
         unknownError: 'Unknown error',
-      },
-    },
-    entityPage: {
-      diagram: {
-        title: 'System Diagram',
       },
     },
     userSettings: {

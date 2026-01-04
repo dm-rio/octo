@@ -36,6 +36,8 @@ HELM_CHART_GKE_DIFF_VALUE_FILE_NAME="diff-values_showcase_GKE.yaml"
 HELM_CHART_RBAC_GKE_DIFF_VALUE_FILE_NAME="diff-values_showcase-rbac_GKE.yaml"
 HELM_CHART_EKS_DIFF_VALUE_FILE_NAME="diff-values_showcase_EKS.yaml"
 HELM_CHART_RBAC_EKS_DIFF_VALUE_FILE_NAME="diff-values_showcase-rbac_EKS.yaml"
+HELM_CHART_OSD_GCP_DIFF_VALUE_FILE_NAME="diff-values_showcase_OSD-GCP.yaml"
+HELM_CHART_RBAC_OSD_GCP_DIFF_VALUE_FILE_NAME="diff-values_showcase-rbac_OSD-GCP.yaml"
 HELM_CHART_SANITY_PLUGINS_DIFF_VALUE_FILE_NAME="diff-values_showcase-sanity-plugins.yaml"
 HELM_CHART_SANITY_PLUGINS_MERGED_VALUE_FILE_NAME="merged-values_showcase-sanity-plugins.yaml"
 
@@ -44,10 +46,6 @@ K8S_CLUSTER_TOKEN_ENCODED=$(printf "%s" $K8S_CLUSTER_TOKEN | base64 | tr -d '\n'
 QUAY_REPO="${QUAY_REPO:-rhdh-community/rhdh}"
 QUAY_NAMESPACE=$(cat /tmp/secrets/QUAY_NAMESPACE)
 QUAY_TOKEN=$(cat /tmp/secrets/QUAY_TOKEN)
-RHDH_SEALIGHTS_BOT_TOKEN=$(cat /tmp/secrets/RHDH_SEALIGHTS_BOT.QUAY.TOKEN)
-RHDH_SEALIGHTS_BOT_USER=$(cat /tmp/secrets/RHDH_SEALIGHTS_BOT.QUAY.USER)
-SL_TOKEN=$(cat /tmp/secrets/SEALIGHT_TOKEN)
-SL_TEST_STAGE="e2e-tests-nightly"
 
 RELEASE_NAME=rhdh
 RELEASE_NAME_RBAC=rhdh-rbac
@@ -57,7 +55,7 @@ NAME_SPACE_RUNTIME="${NAME_SPACE_RUNTIME:-showcase-runtime}"
 NAME_SPACE_POSTGRES_DB="${NAME_SPACE_POSTGRES_DB:-postgress-external-db}"
 NAME_SPACE_SANITY_PLUGINS_CHECK="showcase-sanity-plugins"
 OPERATOR_MANAGER='rhdh-operator'
-CHART_MAJOR_VERSION="1.8"
+CHART_MAJOR_VERSION="1.9"
 GITHUB_APP_APP_ID=$(cat /tmp/secrets/GITHUB_APP_3_APP_ID)
 GITHUB_APP_CLIENT_ID=$(cat /tmp/secrets/GITHUB_APP_3_CLIENT_ID)
 GITHUB_APP_PRIVATE_KEY=$(cat /tmp/secrets/GITHUB_APP_3_PRIVATE_KEY)
@@ -86,6 +84,12 @@ QE_USER5_ID=$(cat /tmp/secrets/QE_USER5_ID)
 QE_USER5_PASS=$(cat /tmp/secrets/QE_USER5_PASS)
 QE_USER6_ID=$(cat /tmp/secrets/QE_USER6_ID)
 QE_USER6_PASS=$(cat /tmp/secrets/QE_USER6_PASS)
+QE_USER7_ID=$(cat /tmp/secrets/QE_USER7_ID)
+QE_USER7_PASS=$(cat /tmp/secrets/QE_USER7_PASS)
+QE_USER8_ID=$(cat /tmp/secrets/QE_USER8_ID)
+QE_USER8_PASS=$(cat /tmp/secrets/QE_USER8_PASS)
+QE_USER9_ID=$(cat /tmp/secrets/QE_USER9_ID)
+QE_USER9_PASS=$(cat /tmp/secrets/QE_USER9_PASS)
 
 K8S_CLUSTER_TOKEN_TEMPORARY=$(cat /tmp/secrets/K8S_CLUSTER_TOKEN_TEMPORARY)
 
@@ -96,8 +100,6 @@ RHDH_PR_OS_CLUSTER_TOKEN=$(cat /tmp/secrets/RHDH_PR_OS_CLUSTER_TOKEN)
 ENCODED_CLUSTER_NAME=$(echo "my-cluster" | base64)
 K8S_CLUSTER_API_SERVER_URL=$(printf "%s" "$K8S_CLUSTER_URL" | base64 | tr -d '\n')
 K8S_SERVICE_ACCOUNT_TOKEN=$K8S_CLUSTER_TOKEN_ENCODED
-OCM_CLUSTER_URL=$(printf "%s" "$K8S_CLUSTER_URL" | base64 | tr -d '\n')
-OCM_CLUSTER_TOKEN=$K8S_CLUSTER_TOKEN_ENCODED
 KEYCLOAK_BASE_URL=$(cat /tmp/secrets/KEYCLOAK_BASE_URL)
 KEYCLOAK_BASE_URL_ENCODED=$(printf "%s" $KEYCLOAK_BASE_URL | base64 | tr -d '\n')
 KEYCLOAK_LOGIN_REALM="myrealm"
@@ -115,11 +117,26 @@ GOOGLE_ACC_COOKIE=$(cat /tmp/secrets/GOOGLE_ACC_COOKIE)
 GOOGLE_USER_ID=$(cat /tmp/secrets/GOOGLE_USER_ID)
 GOOGLE_USER_PASS=$(cat /tmp/secrets/GOOGLE_USER_PASS)
 GOOGLE_2FA_SECRET=$(cat /tmp/secrets/GOOGLE_2FA_SECRET)
-RDS_USER='cmhkaHFl'
+
+# External Database credentials
+## RDS Database for PostgreSQL credentials
+RDS_USER=$(cat /tmp/secrets/RDS_USER)
 RDS_PASSWORD=$(cat /tmp/secrets/RDS_PASSWORD)
 RDS_1_HOST=$(cat /tmp/secrets/RDS_1_HOST)
 RDS_2_HOST=$(cat /tmp/secrets/RDS_2_HOST)
 RDS_3_HOST=$(cat /tmp/secrets/RDS_3_HOST)
+RDS_4_HOST=$(cat /tmp/secrets/RDS_4_HOST)
+## Azure Database for PostgreSQL credentials
+AZURE_DB_USER=$(cat /tmp/secrets/AZURE_DB_USER)
+AZURE_DB_PASSWORD=$(cat /tmp/secrets/AZURE_DB_PASSWORD)
+AZURE_DB_1_HOST=$(cat /tmp/secrets/AZURE_DB_1_HOST)
+AZURE_DB_2_HOST=$(cat /tmp/secrets/AZURE_DB_2_HOST)
+AZURE_DB_3_HOST=$(cat /tmp/secrets/AZURE_DB_3_HOST)
+AZURE_DB_4_HOST=$(cat /tmp/secrets/AZURE_DB_4_HOST)
+# Database TLS certificates (file paths to PEM files from Vault)
+# Store paths instead of content to avoid "Argument list too long" shell errors
+RDS_DB_CERTIFICATES_PATH="/tmp/secrets/rds-db-certificates.pem"
+AZURE_DB_CERTIFICATES_PATH="/tmp/secrets/azure-db-certificates.pem"
 
 JUNIT_RESULTS="junit-results.xml"
 
@@ -184,9 +201,9 @@ KEYCLOAK_AUTH_REALM=$(cat /tmp/secrets/KEYCLOAK_AUTH_REALM)
 
 REGISTRY_REDHAT_IO_SERVICE_ACCOUNT_DOCKERCONFIGJSON=$(cat /tmp/secrets/REGISTRY_REDHAT_IO_SERVICE_ACCOUNT_DOCKERCONFIGJSON)
 
-IS_OPENSHIFT=""
-CONTAINER_PLATFORM=""
-CONTAINER_PLATFORM_VERSION=""
+IS_OPENSHIFT="${IS_OPENSHIFT:-true}"
+CONTAINER_PLATFORM="${CONTAINER_PLATFORM:-unknown}"
+CONTAINER_PLATFORM_VERSION="${CONTAINER_PLATFORM_VERSION:-unknown}"
 
 GITHUB_OAUTH_APP_ID=$(cat /tmp/secrets/GITHUB_OAUTH_APP_ID)
 GITHUB_OAUTH_APP_SECRET=$(cat /tmp/secrets/GITHUB_OAUTH_APP_SECRET)

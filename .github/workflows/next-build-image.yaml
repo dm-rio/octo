@@ -28,6 +28,7 @@ on:
       - '[0-9]+.[0-9]+.[0-9]+'
       - '[0-9]+.[0-9]+'
     branches:
+      - 'main'
       - 'release-**'
 
 concurrency:
@@ -50,14 +51,13 @@ jobs:
           - ubuntu-24.04-arm
           - ubuntu-24.04
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 720 # Set to 12 hours instead of default 360 = 6hrs
+    timeout-minutes: 180 # Set to 3 hours instead of default 360 = 6hrs
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
@@ -111,7 +111,7 @@ jobs:
           echo "✓ Quay credentials are available"
 
       - name: Login to Quay
-        uses: docker/login-action@v3
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.QUAY_USERNAME }}
@@ -145,7 +145,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: digests-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
@@ -156,9 +156,19 @@ jobs:
       runs-on: ubuntu-latest
       needs:
         - build-image
+      permissions:
+        contents: write
+        pull-requests: write
       env:
         HAS_QUAY_AUTH: ${{ secrets.QUAY_USERNAME != '' && secrets.QUAY_TOKEN != '' }}
       steps:
+        - name: Login to Quay
+          uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+          with:
+            registry: ${{ env.REGISTRY }}
+            username: ${{ secrets.QUAY_USERNAME }}
+            password: ${{ secrets.QUAY_TOKEN }}
+
         - name: Prepare
           run: |
             ref_name=${{ github.ref_name }}
@@ -188,12 +198,12 @@ jobs:
             echo "EXPIRES_AFTER=$expires_after" >> $GITHUB_ENV
 
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
           with:
             fetch-depth: 0
 
         - name: Download digests
-          uses: actions/download-artifact@v4
+          uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
           with:
             path: /tmp/digests
             pattern: digests-*
@@ -203,12 +213,12 @@ jobs:
           uses: ./.github/actions/get-sha
 
         - name: Set up Docker Buildx
-          uses: docker/setup-buildx-action@v3
+          uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
 
         - name: Set container metadata (for :next builds, 14d expiry)
           id: meta-next
           if: ${{ env.REF_NAME_SHORT == 'next' || startsWith(env.REF_NAME_SHORT,'next-') }}
-          uses: docker/metadata-action@v5
+          uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
           with:
             images: ${{ env.REGISTRY }}/${{ env.REGISTRY_IMAGE }}
             tags: |
@@ -221,7 +231,7 @@ jobs:
         - name: Set container metadata (for releases, 183d expiry)
           id: meta-release
           if: ${{ env.REF_NAME_SHORT != 'next' && !startsWith(env.REF_NAME_SHORT,'next-') }}
-          uses: docker/metadata-action@v5
+          uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
           with:
             images: ${{ env.REGISTRY }}/${{ env.REGISTRY_IMAGE }}
             tags: |
@@ -232,13 +242,6 @@ jobs:
             labels: |
               quay.expires-after=${{ env.EXPIRES_AFTER }}
               org.opencontainers.image.expires=${{ env.EXPIRES_AFTER }}
-
-        - name: Login to Docker Hub
-          uses: docker/login-action@v3
-          with:
-            registry: ${{ env.REGISTRY }}
-            username: ${{ secrets.QUAY_USERNAME }}
-            password: ${{ secrets.QUAY_TOKEN }}
 
         - name: Create manifest list and push
           working-directory: /tmp/digests
@@ -274,36 +277,36 @@ jobs:
           if: env.HAS_QUAY_AUTH == 'true'
           run: |
             echo "Waiting for Quay to propagate multi-arch manifests..."
-            
+
             # Determine which metadata step ran to get the primary tag
             if [ "${{ env.REF_NAME_SHORT }}" == "next" ] || [[ "${{ env.REF_NAME_SHORT }}" == "next-"* ]]; then
               primary_tag="${{ env.REF_NAME }}"
             else
               primary_tag="${{ env.REF_NAME }}"
             fi
-            
+
             # Retry loop to check manifest availability
             max_attempts=12  # 12 * 5s = 60s maximum wait
             attempt=1
-            
+
             while [ $attempt -le $max_attempts ]; do
               echo "Checking manifest availability (attempt $attempt/$max_attempts)..."
-              
+
               if docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.REGISTRY_IMAGE }}:${primary_tag} >/dev/null 2>&1; then
                 echo "✓ Multi-arch manifest is available after $((($attempt - 1) * 5)) seconds"
                 break
               fi
-              
+
               if [ $attempt -eq $max_attempts ]; then
                 echo "::warning::Manifest still not available after 60 seconds, proceeding anyway"
                 break
               fi
-              
+
               echo "Manifest not ready yet, waiting 5 seconds..."
               sleep 5
               attempt=$((attempt + 1))
             done
-            
+
             echo "Propagation check completed"
 
         - name: Manage expiry and cleanup per-arch images
@@ -320,10 +323,10 @@ jobs:
           run: |
             set -e
             echo "Set multi-arch image expiry and remove single-arch images..."
-            
+
             # Sanitize REF_NAME for use in tags (replace '/' with '-')
             SAFE_REF_TAG="${REF_NAME//\//-}"
-            
+
             # Calculate expiry timestamp and days
             expires="${EXPIRES_AFTER}"
             days="${expires%d}"
@@ -333,13 +336,13 @@ jobs:
             fi
             expiry_ts=$(date -d "+${days} days" +%s)
             echo "Using expiry: ${days} days (timestamp: ${expiry_ts})"
-            
+
             # Define our tags based on build type
             multi_arch_tags=(
               "${SAFE_REF_TAG}"
               "${SAFE_REF_TAG}-${SHORT_SHA}"
             )
-            
+
             # For releases, add the additional short tags
             if [[ "${REF_NAME_SHORT}" != "next" ]] && [[ "${REF_NAME_SHORT}" != "next-"* ]]; then
               SAFE_REF_TAG_SHORT="${REF_NAME_SHORT//\//-}"
@@ -348,45 +351,45 @@ jobs:
                 "${SAFE_REF_TAG_SHORT}-${SHORT_SHA}"
               )
             fi
-            
+
             per_arch_tags=(
               "${SAFE_REF_TAG}-amd64"
               "${SAFE_REF_TAG}-arm64"
               "${SAFE_REF_TAG}-${SHORT_SHA}-amd64"
               "${SAFE_REF_TAG}-${SHORT_SHA}-arm64"
             )
-            
+
             # Check if OAuth token is available for API operations
             if [ -n "${QUAY_OAUTH_TOKEN}" ]; then
               echo "Using OAuth token for API-based expiry management and cleanup..."
-              
+
               # Set environment variables for Python script BEFORE running it
               export MULTI_ARCH_TAGS="${multi_arch_tags[*]}"
               export PER_ARCH_TAGS="${per_arch_tags[*]}"
               export days="${days}"
-              
+
               # Install requests if not available
               pip install requests > /dev/null 2>&1 || echo "requests already available"
-              
+
               # Use Python script for API operations
               python3 << 'EOF'
             import requests
             import os
             import time
             import sys
-            
+
             def set_tag_expiry(base_url, namespace, repository, tag_name, expiry_days, oauth_token, max_retries=3):
                 """Set expiry on a tag using the Quay API with retry logic."""
                 expiry_timestamp = int(time.time()) + (expiry_days * 24 * 60 * 60)
-                
+
                 url = f"{base_url}/repository/{namespace}/{repository}/tag/{tag_name}"
                 headers = {"Authorization": f"Bearer {oauth_token}", "Content-Type": "application/json"}
                 payload = {"expiration": expiry_timestamp}
-                
+
                 for attempt in range(max_retries):
                     try:
                         response = requests.put(url, headers=headers, json=payload)
-                        
+
                         if response.status_code in [200, 201, 204]:
                             print(f"Set {expiry_days}-day expiry on {tag_name}")
                             return True
@@ -400,7 +403,7 @@ jobs:
                         else:
                             print(f"Tag {tag_name}: Expiry failed ({response.status_code}) - {response.text}")
                             return False
-                            
+
                     except Exception as e:
                         if attempt < max_retries - 1:
                             print(f"Tag {tag_name}: Request failed (attempt {attempt + 1}/{max_retries}), retrying: {e}")
@@ -409,17 +412,17 @@ jobs:
                         else:
                             print(f"Tag {tag_name}: Request failed after {max_retries} attempts - {e}")
                             return False
-                
+
                 return False
-            
+
             def delete_tag(base_url, namespace, repository, tag_name, oauth_token):
                 """Delete a tag using the Quay API."""
                 url = f"{base_url}/repository/{namespace}/{repository}/tag/{tag_name}"
                 headers = {"Authorization": f"Bearer {oauth_token}"}
-                
+
                 try:
                     response = requests.delete(url, headers=headers)
-                    
+
                     if response.status_code == 204:
                         print(f"Deleted tag {tag_name}")
                         return True
@@ -429,39 +432,39 @@ jobs:
                     else:
                         print(f"Tag {tag_name}: Delete failed ({response.status_code}) - {response.text}")
                         return False
-                        
+
                 except Exception as e:
                     print(f"Tag {tag_name}: Delete request failed - {e}")
                     return False
-            
+
             def main():
                 """Main function for expiry and cleanup."""
-                
+
                 # Parse repository
                 repository = os.environ['REGISTRY_IMAGE']
                 if '/' not in repository:
                     print(f"Error: Repository must be in format 'namespace/repository', got: {repository}")
                     sys.exit(1)
-                
+
                 namespace, repo_name = repository.split('/', 1)
                 base_url = "https://quay.io/api/v1"
                 oauth_token = os.environ['QUAY_OAUTH_TOKEN']
                 expiry_days = int(os.environ.get('days', '14'))
-                
+
                 # Get tags from environment
                 multi_arch_tags = os.environ.get('MULTI_ARCH_TAGS', '').split()
                 per_arch_tags = os.environ.get('PER_ARCH_TAGS', '').split()
-                
+
                 print(f"Managing tags for {repository}")
                 print(f"Multi-arch tags: {multi_arch_tags}")
                 print(f"Per-arch tags to delete: {per_arch_tags}")
-                
+
                 # Step 1: Set expiry on multi-arch tags
                 print(f"\nSetting {expiry_days}-day expiry on multi-arch tags...")
                 for tag in multi_arch_tags:
                     if tag:  # Skip empty strings
                         set_tag_expiry(base_url, namespace, repo_name, tag, expiry_days, oauth_token)
-                
+
                 # Step 2: Delete per-arch tags
                 print(f"\nDeleting per-arch tags...")
                 deleted_count = 0
@@ -469,25 +472,25 @@ jobs:
                     if tag:  # Skip empty strings
                         if delete_tag(base_url, namespace, repo_name, tag, oauth_token):
                             deleted_count += 1
-                
+
                 print(f"\nSummary:")
                 print(f"Multi-arch tags with expiry: {len([t for t in multi_arch_tags if t])}")
                 print(f"Per-arch tags deleted: {deleted_count}/{len([t for t in per_arch_tags if t])}")
                 print(f"Lifecycle management completed using OAuth API")
-            
+
             if __name__ == "__main__":
                 main()
             EOF
-              
+
             else
               echo "No QUAY_OAUTH_TOKEN available - falling back to Docker BuildX annotations"
               echo "Robot accounts cannot delete via API (Quay security limitation)"
-              
+
               # Fallback: Use Docker BuildX for expiry annotations only
               echo "Applying expiry annotations to multi-arch tags via Docker BuildX..."
               for tag in "${multi_arch_tags[@]}"; do
                 echo "Re-annotating tag: ${tag}"
-                
+
                 if docker buildx imagetools create \
                   --tag "${{ env.REGISTRY }}/${REGISTRY_IMAGE}:${tag}" \
                   --annotation "quay.expires-after=${EXPIRES_AFTER}" \
@@ -498,8 +501,8 @@ jobs:
                   echo "::warning::Failed to re-annotate ${tag}"
                 fi
               done
-              
+
               echo "Per-arch images will be cleaned up via expiry (no immediate deletion possible with robot accounts)"
             fi
-            
+
             echo "Image lifecycle management completed"
