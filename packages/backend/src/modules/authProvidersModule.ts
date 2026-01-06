@@ -85,7 +85,13 @@ function getAuthProviderFactory(
       const email: string | undefined = claims?.email;
       const preferredUsername: string | undefined = claims?.preferred_username;
       const sub: string | undefined = claims?.sub;
-      const username = (preferredUsername || (email ? email.split('@')[0] : undefined) || sub || '').toString().toLocaleLowerCase();
+      // Extract username: prefer preferred_username (split by @ if it contains @), then email (split by @), then sub (split by @ if it contains @)
+      const username = (
+        (preferredUsername ? (preferredUsername.includes('@') ? preferredUsername.split('@')[0] : preferredUsername) : undefined) ||
+        (email ? email.split('@')[0] : undefined) ||
+        (sub ? (sub.includes('@') ? sub.split('@')[0] : sub) : undefined) ||
+        ''
+      ).toString().toLocaleLowerCase();
       const userEntityRef = `user:default/${username}`;
       let entitlements: string[] = Array.isArray(claims?.groups) ? claims.groups : [];
       try {
@@ -265,9 +271,31 @@ function getAuthProviderFactory(
       return createProxyAuthProviderFactory({
         authenticator: jwtAuthenticator,
         // Sign-in resolver that mints a Backstage token using the issuer
+        // If groups are missing from token, fetch from catalog via signInWithCatalogUser
         signInResolver: async (info, ctx) => {
           const sub = info.result.userEntityRef as string;
           const ent = (info.result.ownershipEntityRefs as string[]) ?? [];
+          
+          // If groups are missing from IdP token, fetch from catalog
+          // signInWithCatalogUser automatically includes both user entity ref and groups from spec.memberOf
+          if (ent.length === 0) {
+            try {
+              // Extract username from userEntityRef (format: user:default/username)
+              const username = sub.split('/').pop();
+              if (username) {
+                // signInWithCatalogUser looks up the user in catalog and automatically
+                // includes groups from spec.memberOf in the returned token
+                return await ctx.signInWithCatalogUser({
+                  entityRef: { name: username },
+                });
+              }
+            } catch (e: any) {
+              // If catalog lookup fails, fall back to issuing token without groups
+              // This allows login to proceed even if user is not in catalog
+            }
+          }
+          
+          // Issue token with groups from IdP token (or empty if none)
           return ctx.issueToken({ claims: { sub, ...(ent.length ? { ent } : {}) } });
         },
       });
