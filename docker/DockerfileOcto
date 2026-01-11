@@ -221,7 +221,7 @@ WORKDIR $CONTAINER_SOURCE/
 COPY "$EXTERNAL_SOURCE_NESTED"/python/ ./python
 COPY "$EXTERNAL_SOURCE_NESTED"/.rbac/ ./.rbac/
 
-RUN microdnf install -y python3.11 python3.11-pip python3.11-devel make cmake cpp gcc gcc-c++ skopeo 1>/dev/null 2>&1; \
+RUN microdnf install -y python3.11 python3.11-pip python3.11-devel make cmake cpp gcc gcc-c++ skopeo sudo pam 1>/dev/null 2>&1; \
   alternatives --install /usr/bin/python python /usr/bin/python3.11 1 && \
   alternatives --install /usr/bin/pip pip /usr/bin/pip3.11 1 && \
   # fix ownership for pip install folder
@@ -265,6 +265,29 @@ RUN mkdir -p /opt/octo/src/.npm; chown -R 1001:1001 /opt/octo/src/.npm
 # The upstream backstage image does not account for this and it causes the container to fail at runtime.
 # suppress warnings about dereferencing symlinks
 RUN fix-permissions ./ 2>&1 | grep -v "chgrp: cannot dereference" || true
+
+# Configure sudo for user 1001 to run kaniko as root
+# Ensure user 1001 exists and configure sudo with complete PAM stack
+RUN (getent passwd 1001 || echo "default:x:1001:0:Default User:/opt/octo/src:/bin/bash" >> /etc/passwd) && \
+  (getent group 1001 || echo "default:x:1001:" >> /etc/group) && \
+  mkdir -p /etc/sudoers.d && \
+  echo "Defaults !requiretty" >> /etc/sudoers.d/1001-kaniko && \
+  echo "Defaults !pam_session" >> /etc/sudoers.d/1001-kaniko && \
+  echo "Defaults !use_pty" >> /etc/sudoers.d/1001-kaniko && \
+  echo "default ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/1001-kaniko && \
+  echo "# Allow user with UID 1001" >> /etc/sudoers.d/1001-kaniko && \
+  echo "%1001 ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/1001-kaniko && \
+  chmod 0440 /etc/sudoers.d/1001-kaniko && \
+  mkdir -p /etc/pam.d && \
+  echo "auth       sufficient pam_permit.so" > /etc/pam.d/sudo && \
+  echo "account    sufficient pam_permit.so" >> /etc/pam.d/sudo && \
+  echo "password   sufficient pam_permit.so" >> /etc/pam.d/sudo && \
+  echo "session    sufficient pam_permit.so" >> /etc/pam.d/sudo && \
+  echo "auth       sufficient pam_permit.so" > /etc/pam.d/sudo-i && \
+  echo "account    sufficient pam_permit.so" >> /etc/pam.d/sudo-i && \
+  echo "password   sufficient pam_permit.so" >> /etc/pam.d/sudo-i && \
+  echo "session    sufficient pam_permit.so" >> /etc/pam.d/sudo-i && \
+  visudo -c || true
 
 # Switch to nodejs user
 USER 1001
