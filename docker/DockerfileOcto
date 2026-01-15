@@ -232,9 +232,9 @@ RUN microdnf install -y python3.11 python3.11-pip python3.11-devel make cmake cp
   python3.11 -V; pip3.11 -V; \
   pip install --no-cache-dir --upgrade pip setuptools pyyaml; \
   pip install --no-cache-dir -r requirements.txt -r requirements-build.txt; mkdocs --version; \
-  pip install --upgrade --force-reinstall octo-utilities --index-url https://nexus.digital-mind.org/repository/digital-mind-public-pypi/simple/ --no-cache-dir; \
   pip install google-cloud-storage; \
   pip install google-cloud-artifact-registry; \
+  pip install --upgrade --force-reinstall octo-utilities --index-url https://nexus.digital-mind.org/repository/digital-mind-public-pypi/simple/ --no-cache-dir; \
   popd >/dev/null; \
   rm -fr python/; \
   microdnf clean all
