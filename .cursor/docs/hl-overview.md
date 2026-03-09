@@ -14,7 +14,7 @@ Octo Product is comprised of:
 1.1. Read https://developers.redhat.com/products/rhdh and https://backstage.io/ to extract key benefits from using an enterprise portal to include them in the presentations
 1.2 Octo Portal offers OIDC SSO functionality to reuse the existing user base
 1.3 One of the most important parts of the enterprise catalog is that it shows in a hierarchical manner the ecosystem components and their relations having also RBAC control over the visibility
-3. Octo CLI - Command line interface component that offers an easy way to interact with the octo portal for common actions as well as offering an opinionated software development lifecycle ensuring industry standard  flows with highly tuned process timings reducing at maximum waiting times
+2. Octo CLI - Command line interface component that offers an easy way to interact with the octo portal for common actions as well as offering an opinionated software development lifecycle ensuring industry standard  flows with highly tuned process timings reducing at maximum waiting times
 2.1 True DevOps all actions are handled through code (this part would benefit to have an image generated to emphasise this benefit somehow)
 - no longer lots of DSLs for different CI/CD platform
 - no longer lots of resources required for runners and slaves
@@ -25,6 +25,8 @@ Octo Product is comprised of:
 - Octo Builders - components invoked when building a project. Example called by the `octo mr <target_branch>` command
 - Octo Publishers - components invoked when publishing an artifact (jar, docker image) to a repository
 - Octo Deployers - components used to invoke a deployment flow for an artifact / or release manifest to a target environment
+- Octo Release Curators - components used to plan a release
+3. Octo CLI allows information gathering and propagation to the catalog at the most relevant moment at developer's level enforcing all governance requirements.
 
 #### Product Specification
 Common development change flow:
@@ -41,3 +43,11 @@ Common development change flow:
 6.1 The publisher associated to the component will publish the artifacts that were staged when the merge request was opened
 6.2 The publisher associated to the compoenent will bump the version to the next snapshot is implicit release is desired
 6.2 The publisher component will also send any desired notifications related to the completed merge
+
+#### Product Specification
+Common release planning:
+1. User starts a release using `octo plan release`
+2. The wizard instructs the user to add the necessary components in the release scope
+3. The release is registered in the release trail repository with the release manifest file
+4. The release manifest can be used as a base for deploying to an environment
+

@@ -94,10 +94,39 @@ function getAuthProviderFactory(
       ).toString().toLocaleLowerCase();
       const userEntityRef = `user:default/${username}`;
       let entitlements: string[] = Array.isArray(claims?.groups) ? claims.groups : [];
+      
+      // Extract roles from multiple possible locations in the JWT token
       try {
-        const roles = claims?.resource_access?.octo?.roles;
-        if (Array.isArray(roles)) entitlements = entitlements.concat(roles);
-      } catch (_e) {}
+        // Check resource_access.octo.roles (Keycloak client roles)
+        const clientRoles = claims?.resource_access?.octo?.roles;
+        if (Array.isArray(clientRoles)) {
+          entitlements = entitlements.concat(clientRoles);
+        }
+        
+        // Check realm_access.roles (Keycloak realm roles)
+        const realmRoles = claims?.realm_access?.roles;
+        if (Array.isArray(realmRoles)) {
+          entitlements = entitlements.concat(realmRoles);
+        }
+        
+        // Check direct roles claim
+        const directRoles = claims?.roles;
+        if (Array.isArray(directRoles)) {
+          entitlements = entitlements.concat(directRoles);
+        }
+        
+        // Check for roles in other resource_access clients
+        if (claims?.resource_access) {
+          Object.values(claims.resource_access).forEach((client: any) => {
+            if (client?.roles && Array.isArray(client.roles)) {
+              entitlements = entitlements.concat(client.roles);
+            }
+          });
+        }
+      } catch (_e) {
+        // Silently continue if role extraction fails
+      }
+      
       const ownershipEntityRefs = entitlements
         .filter((g: unknown) => typeof g === 'string' && g)
         .map((g: string) => `group:default/${g}`);
@@ -276,6 +305,13 @@ function getAuthProviderFactory(
           const sub = info.result.userEntityRef as string;
           const ent = (info.result.ownershipEntityRefs as string[]) ?? [];
           
+          // Debug logging to trace role extraction
+          if (ent.length > 0) {
+            console.log(`[JWT Auth] Extracted ownershipEntityRefs for ${sub}:`, ent);
+          } else {
+            console.log(`[JWT Auth] No ownershipEntityRefs found for ${sub}, attempting catalog lookup`);
+          }
+          
           // If groups are missing from IdP token, fetch from catalog
           // signInWithCatalogUser automatically includes both user entity ref and groups from spec.memberOf
           if (ent.length === 0) {
@@ -285,18 +321,23 @@ function getAuthProviderFactory(
               if (username) {
                 // signInWithCatalogUser looks up the user in catalog and automatically
                 // includes groups from spec.memberOf in the returned token
-                return await ctx.signInWithCatalogUser({
+                const catalogResult = await ctx.signInWithCatalogUser({
                   entityRef: { name: username },
                 });
+                console.log(`[JWT Auth] Catalog lookup for ${username} succeeded`);
+                return catalogResult;
               }
             } catch (e: any) {
               // If catalog lookup fails, fall back to issuing token without groups
               // This allows login to proceed even if user is not in catalog
+              console.log(`[JWT Auth] Catalog lookup failed: ${e?.message || e}`);
             }
           }
           
           // Issue token with groups from IdP token (or empty if none)
-          return ctx.issueToken({ claims: { sub, ...(ent.length ? { ent } : {}) } });
+          const tokenClaims = { sub, ...(ent.length ? { ent } : {}) };
+          console.log(`[JWT Auth] Issuing token for ${sub} with claims:`, JSON.stringify(tokenClaims, null, 2));
+          return ctx.issueToken({ claims: tokenClaims });
         },
       });
     case 'okta':
